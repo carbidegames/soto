@@ -1,0 +1,8 @@
+[package]
+name = "soto-fbx"
+description = "Source Tooling FBX tool."
+version = "0.1.0"
+authors = ["Layl <LaylConway@users.noreply.github.com>"]
+
+[dependencies]
+fbx-simple = {path = "../fbx-simple"}
