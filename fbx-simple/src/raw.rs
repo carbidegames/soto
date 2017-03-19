@@ -33,6 +33,10 @@ impl FbxNode {
 
         Ok(node)
     }
+
+    pub fn find_child(&self, name: &str) -> Option<&FbxNode> {
+        self.nodes.iter().find(|c| c.name == name)
+    }
 }
 
 #[derive(Debug)]
