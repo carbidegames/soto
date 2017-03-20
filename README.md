@@ -1,11 +1,11 @@
 # SoTo - Source Tooling
-Various tools for working with Source art assets.
+Various tools for working with Source Engine art assets.
+
+## soto-cli (WORK IN PROGRESS)
+A Source Engine art asset project manager. Auto-generates, compiles and copies files.
 
 ## soto-fbx (WORK IN PROGRESS)
-Converts FBX files to source-ready files.
-
-## soto-wrangle (WORK IN PROGRESS)
-A source art asset project manager. Auto-generates, compiles and copies files.
+Converts FBX files to Source Engine MDLs.
 
 ## License
 Licensed under either of

@@ -13,7 +13,7 @@ impl SmdExportExt for Smd {
         // Write the bone nodes
         writeln!(target, "nodes")?;
         for bone in &self.bones {
-            writeln!(target, "{} {} -1", bone.id, bone.name)?;
+            writeln!(target, "{} \"{}\" -1", bone.id, bone.name)?;
         }
         writeln!(target, "end")?;
 
