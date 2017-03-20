@@ -13,12 +13,15 @@ pub enum FbxObject {
 pub struct FbxGeometry {
     pub id: i64,
     pub name: String,
+    /// Vertices that make up the polygon.
     pub vertices: Vec<[f32; 3]>,
     /// Vertex indices that make up the polygons.
     pub polygons: Vec<Vec<u32>>,
-    /// Normals for polygon vertices. Other normal types than "ByPolygonVertex" not currently supported.
+    /// Normals for polygon vertices. Other normal types than "ByPolygonVertex", "Direct" not
+    /// currently supported.
     pub normals: Vec<[f32; 3]>,
-    /// UVs for polygon vertices. Other uv types than "ByPolygonVertex" not currently supported.
+    /// UVs for polygon vertices. Other uv types than "ByPolygonVertex", "IndexToDirect" not
+    /// currently supported.
     pub uvs: Vec<[f32; 2]>,
 }
 
@@ -87,6 +90,33 @@ impl FbxGeometry {
             normals: normals,
             uvs: uvs,
         }
+    }
+
+    pub fn triangles(&self) -> Vec<[([f32; 3], [f32; 3], [f32; 2]); 3]> {
+        // If our assumptions are right, normals and uvs should have the same amount of entries
+        assert!(self.normals.len() == self.uvs.len());
+
+        let mut triangles = Vec::new();
+
+        // Go through all polygons
+        for (poly_num, poly) in self.polygons.iter().enumerate() {
+            // Make sure this is a triangle, our current method of getting the normals and uvs
+            // doesn't make sense otherwise.
+            assert!(poly.len() == 3); // TODO: Improve error handling
+
+            // Go through the indices in this polygon
+            let mut triangle: [([f32; 3], [f32; 3], [f32; 2]); 3] = Default::default();
+            for (index_num, index) in poly.iter().enumerate() {
+                triangle[index_num] = (
+                    self.vertices[*index as usize],
+                    self.normals[poly_num * 3 + index_num],
+                    self.uvs[poly_num * 3 + index_num],
+                );
+            }
+            triangles.push(triangle);
+        }
+
+        triangles
     }
 }
 

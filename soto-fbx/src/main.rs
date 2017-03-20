@@ -7,6 +7,7 @@ use fbx_simple::{RawFbx, SimpleFbx, FbxObject, friendly_name};
 
 fn main() {
     // TODO: Read in a convert config definition that contains all the values needed for converting
+    // This tool should convert various FBX files defined in an input descriptor file into a MDL
 
     // Read in the fbx
     let file = BufReader::new(File::open("../debugref/test_cube.fbx").unwrap());
@@ -21,7 +22,9 @@ fn main() {
             // For this model object, find the linked geometry
             for obj in fbx.children_of(model.id) {
                 if let &FbxObject::Geometry(ref geom) = obj {
-                    println!(" Found geometry! {:?}", geom);
+                    // We've got geometry, add it to the SMD
+                    let tris = geom.triangles();
+                    println!(" Triangles: {:?}", tris);
                 }
             }
         }
