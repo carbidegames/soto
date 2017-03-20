@@ -146,14 +146,19 @@ fn node_to_vector2s(node: &FbxNode) -> Vec<[f32; 2]> {
 pub struct FbxModel {
     pub id: i64,
     pub name: String,
+    pub translation: [f32; 3],
 }
 
 impl FbxModel {
     fn from_node(node: &FbxNode) -> Self {
+        // Find the translation in the model
+        let translation: [f32; 3] = Default::default();
+
         // Retrieve model parameter information
         let model = FbxModel {
             id: node.properties[0].get_i64().unwrap(),
-            name: node.properties[1].get_string().unwrap().clone()
+            name: node.properties[1].get_string().unwrap().clone(),
+            translation: translation,
         };
 
         model
