@@ -1,43 +1,43 @@
-use std::error::Error;
+use std::error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use toml::de;
 
 #[derive(Debug)]
-pub enum SotoError {
-    RequiredFileReadError(String, Box<Error>),
+pub enum Error {
+    RequiredFileReadError(String, Box<error::Error>),
     IoError(io::Error),
     TomlParseError(de::Error),
 }
 
-impl Error for SotoError {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            SotoError::RequiredFileReadError(_, _) => "Required File Read Error",
-            SotoError::IoError(_) => "IO Error",
-            SotoError::TomlParseError(_) => "Toml Parse Error",
+            Error::RequiredFileReadError(_, _) => "Required File Read Error",
+            Error::IoError(_) => "IO Error",
+            Error::TomlParseError(_) => "Toml Parse Error",
         }
     }
 }
 
-impl Display for SotoError {
+impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            SotoError::RequiredFileReadError(ref file, ref e) =>
+            Error::RequiredFileReadError(ref file, ref e) =>
                 write!(f, "Error while reading required file \"{}\": {}", file, e),
             _ => write!(f, "{:?}", self),
         }
     }
 }
 
-impl From<io::Error> for SotoError {
+impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
-        SotoError::IoError(error)
+        Error::IoError(error)
     }
 }
 
-impl From<de::Error> for SotoError {
+impl From<de::Error> for Error {
     fn from(error: de::Error) -> Self {
-        SotoError::TomlParseError(error)
+        Error::TomlParseError(error)
     }
 }
