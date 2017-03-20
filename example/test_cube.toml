@@ -1,0 +1,14 @@
+[soto]
+runner = "soto-fbx"
+
+[prop]
+name = "test_cube"
+type = "static" # TODO: dynamic
+surface_prop = "default"
+
+[model]
+reference = "test_cube.fbx" # TODO: @Reference to filter layer?
+
+#[sequence.move]
+#file = "test_cube_move.fbx"
+#params = "loop fps 30"
