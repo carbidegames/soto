@@ -1,6 +1,9 @@
 [package]
-name = "soto-wrangle"
+name = "soto"
 version = "0.1.0"
 authors = ["Layl <LaylConway@users.noreply.github.com>"]
 
 [dependencies]
+serde = "0.9.11"
+serde_derive = "0.9.11"
+toml = "0.3.1"

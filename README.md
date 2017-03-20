@@ -1,7 +1,7 @@
 # SoTo - Source Tooling
 Various tools for working with Source Engine art assets.
 
-## soto-cli
+## soto
 A Source Engine art asset project manager and build tool.
 
 ## soto-fbx
