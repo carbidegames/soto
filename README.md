@@ -1,8 +1,8 @@
 # SoTo - Source Tooling
-Various tools for working with Source Engine art assets.
+Various tools for working with Source Engine assets.
 
 ## soto
-A Source Engine art asset project manager and build tool.
+A Source Engine asset project manager and build tool.
 
 ## soto-fbx
 A plugin for soto-cli that converts FBX files to Source Engine MDLs.

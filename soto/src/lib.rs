@@ -17,11 +17,10 @@ pub fn build<P: Into<PathBuf>>(directory: P) -> Result<(), SotoError> {
     let directory = directory.into();
 
     // Open up the project files
-    let soto_proj: SotoProjectFile = read_required(&directory, "SoTo.toml")?;
-    let soto_local: SotoLocalFile = read_required(&directory, "SoTo.Local.toml")?;
+    let _soto_proj: SotoProjectFile = read_required(&directory, "SoTo.toml")?;
+    let _soto_local: SotoLocalFile = read_required(&directory, "SoTo.Local.toml")?;
 
-    println!("{:?}", soto_proj);
-    println!("{:?}", soto_local);
+    // TODO: Walk the directory and find .toml files
 
     Ok(())
 }
