@@ -35,3 +35,9 @@ pub fn friendly_name<T: AsRef<str>>(value: T) -> String {
     let parts: Vec<_> = value.as_ref().rsplit("\u{0}\u{1}").collect();
     parts.join("::")
 }
+
+/// Converts unfriendly FBX names that contain \u{0} and \u{1} into names that can be used as
+/// identifiers.
+pub fn id_name<T: AsRef<str>>(value: T) -> Option<String> {
+    value.as_ref().split("\u{0}\u{1}").next().map(|s| s.to_string())
+}

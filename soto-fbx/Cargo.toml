@@ -5,4 +5,5 @@ version = "0.1.0"
 authors = ["Layl <LaylConway@users.noreply.github.com>"]
 
 [dependencies]
-fbx-simple = {path = "../fbx-simple"}
+sotolib-fbx = {path = "../sotolib-fbx"}
+sotolib-smd = {path = "../sotolib-smd"}
