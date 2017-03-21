@@ -6,6 +6,7 @@ use std::io::{BufReader, BufRead};
 use serde_json;
 use slog::Logger;
 
+use files::{SotoProjectFile, SotoLocalFile};
 use Error;
 
 /// Describes a task to be run.
@@ -15,7 +16,9 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn run(self, log: &Logger) -> Result<(), Error> {
+    pub fn run(
+        self, log: &Logger, project: SotoProjectFile, local: SotoLocalFile
+    ) -> Result<(), Error> {
         // TODO: Support receiving logging message from the task while it's running
 
         // Create the task paramters which we need to send over
@@ -23,6 +26,9 @@ impl Task {
             working_dir: "./target/working".into(),
             target_dir: "./target/dist".into(),
             target_toml: self.task_file.clone(),
+
+            project: project,
+            local: local,
         };
         let task_params_json = serde_json::to_string(&task_params).unwrap();
 
@@ -121,6 +127,9 @@ pub struct TaskParameters {
     pub working_dir: PathBuf,
     pub target_dir: PathBuf,
     pub target_toml: PathBuf,
+
+    pub project: SotoProjectFile,
+    pub local: SotoLocalFile,
 }
 
 #[derive(Serialize, Deserialize)]

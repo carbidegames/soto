@@ -13,8 +13,8 @@ pub fn build<P: Into<PathBuf>>(log: &Logger, directory: P) -> Result<(), Error> 
     let directory = directory.into();
 
     // Open up the project files
-    let _soto_proj: SotoProjectFile = read_required(&directory, "SoTo.toml")?;
-    let _soto_local: SotoLocalFile = read_required(&directory, "SoTo.Local.toml")?;
+    let project: SotoProjectFile = read_required(&directory, "SoTo.toml")?;
+    let local: SotoLocalFile = read_required(&directory, "SoTo.Local.toml")?;
 
     // Walk the directory looking for files we need to do stuff to
     for entry in WalkDir::new(directory) {
@@ -25,7 +25,7 @@ pub fn build<P: Into<PathBuf>>(log: &Logger, directory: P) -> Result<(), Error> 
 
         // Handle any extensions we want to look at
         match entry.path().extension().map(|v| v.to_str().unwrap()) {
-            Some("toml") => handle_toml(log, entry.path())?,
+            Some("toml") => handle_toml(log, entry.path(), &project, &local)?,
             _ => ()
         }
     }
@@ -33,7 +33,9 @@ pub fn build<P: Into<PathBuf>>(log: &Logger, directory: P) -> Result<(), Error> 
     Ok(())
 }
 
-fn handle_toml(log: &Logger, path: &Path) -> Result<(), Error> {
+fn handle_toml(
+    log: &Logger, path: &Path, project: &SotoProjectFile, local: &SotoLocalFile
+) -> Result<(), Error> {
     // Set up the logger for this file
     let log_path = format!("{}", path.display());
     let log = log.new(o!("file" => log_path));
@@ -50,7 +52,7 @@ fn handle_toml(log: &Logger, path: &Path) -> Result<(), Error> {
     let result = Task {
         runner: data.runner,
         task_file: path.to_path_buf(),
-    }.run(&log);
+    }.run(&log, project.clone(), local.clone());
 
     // Log the actual result
     match result {

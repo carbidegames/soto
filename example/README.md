@@ -7,6 +7,6 @@ After setting up a SoTo project for the first time, you should create a
 *SoTo.Local.toml* file to tell SoTo where to find the game you're building for.
 ```toml
 [game]
-bin = "C:\\Program Files (x86)\\Steam\\steamapps\\Team Fortress 2\\bin"
-content = "C:\\Program Files (x86)\\Steam\\steamapps\\Team Fortress 2\\tf2"
+bin = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\bin"
+content = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf2"
 ```
