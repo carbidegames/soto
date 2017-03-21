@@ -131,7 +131,7 @@ fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Result
     writeln!(file)?;
 
     // Prop information
-    //writeln!(file, "$staticprop")?;
+    writeln!(file, "$staticprop")?;
     writeln!(file, "$surfaceprop \"default\"")?;
     writeln!(file)?;
 
