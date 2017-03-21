@@ -1,15 +1,12 @@
 use std::path::{Path, PathBuf};
-use std::fs::File;
-use std::io::{Read};
 
 use serde::Deserialize;
-use toml;
 use walkdir::WalkDir;
 use slog::Logger;
 
 use files::{SotoProjectFile, SotoLocalFile, SotoTaskFile};
 use task::{Task};
-use Error;
+use {read_toml, Error};
 
 /// Build a project in a directory.
 pub fn build<P: Into<PathBuf>>(log: &Logger, directory: P) -> Result<(), Error> {
@@ -68,13 +65,6 @@ fn handle_toml(log: &Logger, path: &Path) -> Result<(), Error> {
 fn read_required<P: Deserialize>(directory: &PathBuf, file_name: &str) -> Result<P, Error> {
     read_toml(&file_in(directory, file_name))
         .map_err(|e| Error::RequiredFileRead(file_name.into(), Box::new(e)))
-}
-
-fn read_toml<P: Deserialize>(path: &Path) -> Result<P, Error> {
-    let mut file = File::open(path)?;
-    let mut data = String::new();
-    file.read_to_string(&mut data)?;
-    Ok(toml::from_str(&data)?)
 }
 
 fn file_in(path: &PathBuf, file: &str) -> PathBuf {

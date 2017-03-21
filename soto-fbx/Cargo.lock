@@ -2,6 +2,8 @@
 name = "soto-fbx"
 version = "0.1.0"
 dependencies = [
+ "serde 0.9.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 0.9.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "soto 0.1.0",
  "sotolib-fbx 0.1.0",
  "sotolib-smd 0.1.0",

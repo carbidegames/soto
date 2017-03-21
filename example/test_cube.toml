@@ -9,6 +9,6 @@ surface_prop = "default"
 [model]
 reference = "test_cube.fbx" # TODO: @Reference to filter layer?
 
-#[sequence.move]
+#TODO: [sequence.move]
 #file = "test_cube_move.fbx"
 #params = "loop fps 30"

@@ -1,17 +1,28 @@
+#[macro_use] extern crate serde_derive;
 extern crate soto;
 extern crate sotolib_fbx;
 extern crate sotolib_smd;
+
+mod task;
 
 use std::fs::File;
 use std::io::BufReader;
 
 use soto::task::{task_wrapper, TaskParameters, TaskResult};
+use soto::Error;
 use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, friendly_name, id_name};
 use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt};
+
+use task::SotoFbxTask;
 
 fn main() {
     // This is a soto task, so we need to run the wrapper
     task_wrapper(task_main);
+}
+
+fn task_main(params: TaskParameters) -> Result<(), Error> {
+    // First, read in the toml we got told to read
+    let toml: SotoFbxTask = soto::read_toml(&params.target_toml)?;
 
     // Read in the fbx
     /*let file = BufReader::new(File::open("../debugref/test_cube.fbx").unwrap());
@@ -67,10 +78,6 @@ fn main() {
     // Export the SMD
     let export_file = File::create("./test.smd").unwrap();
     smd.export(export_file).unwrap();*/
-}
 
-fn task_main(_params: TaskParameters) -> TaskResult {
-    TaskResult {
-        error: Some("nothing to do".into())
-    }
+    Ok(())
 }

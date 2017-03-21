@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::env;
 use std::process::Command;
 use std::path::PathBuf;
@@ -50,7 +51,7 @@ impl Task {
 }
 
 /// Turns the binary into a soto task, parses parameters and serializes result.
-pub fn task_wrapper<F: FnOnce(TaskParameters) -> TaskResult>(task: F) {
+pub fn task_wrapper<E: Display, F: FnOnce(TaskParameters) -> Result<(), E>>(task: F) {
     // Get the json from the arguments and turn it into a parameters structure
     let mut args = env::args();
     if args.len() != 2 {
@@ -63,6 +64,12 @@ pub fn task_wrapper<F: FnOnce(TaskParameters) -> TaskResult>(task: F) {
 
     // Run the task itself
     let result = task(params);
+
+    // Turn the task's result into a TaskResult
+    let result = match result {
+        Ok(_) => TaskResult { error: None },
+        Err(e) => TaskResult { error: Some(format!("{}", e)) }
+    };
 
     // Print the result, so the caller can do something with it
     println!("{}", serde_json::to_string(&result).unwrap());

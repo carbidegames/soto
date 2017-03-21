@@ -5,6 +5,8 @@ version = "0.1.0"
 authors = ["Layl <LaylConway@users.noreply.github.com>"]
 
 [dependencies]
+serde = "0.9.11"
+serde_derive = "0.9.11"
 soto = {path = "../soto"}
 sotolib-fbx = {path = "../sotolib-fbx"}
 sotolib-smd = {path = "../sotolib-smd"}
