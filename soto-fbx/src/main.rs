@@ -1,18 +1,20 @@
+extern crate soto;
 extern crate sotolib_fbx;
 extern crate sotolib_smd;
 
 use std::fs::File;
 use std::io::BufReader;
 
+use soto::task::{task_wrapper, TaskParameters, TaskResult};
 use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, friendly_name, id_name};
 use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt};
 
 fn main() {
-    // TODO: Read in a convert config definition that contains all the values needed for converting
-    // This tool should convert various FBX files defined in an input descriptor file into a MDL
+    // This is a soto task, so we need to run the wrapper
+    task_wrapper(task_main);
 
     // Read in the fbx
-    let file = BufReader::new(File::open("../debugref/test_cube.fbx").unwrap());
+    /*let file = BufReader::new(File::open("../debugref/test_cube.fbx").unwrap());
     let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap());
 
     // Create a target SMD to export to
@@ -64,5 +66,11 @@ fn main() {
 
     // Export the SMD
     let export_file = File::create("./test.smd").unwrap();
-    smd.export(export_file).unwrap();
+    smd.export(export_file).unwrap();*/
+}
+
+fn task_main(_params: TaskParameters) -> TaskResult {
+    TaskResult {
+        error: Some("nothing to do".into())
+    }
 }

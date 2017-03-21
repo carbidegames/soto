@@ -5,17 +5,19 @@ use toml::de;
 
 #[derive(Debug)]
 pub enum Error {
-    RequiredFileReadError(String, Box<error::Error>),
-    IoError(io::Error),
-    TomlParseError(de::Error),
+    RequiredFileRead(String, Box<error::Error>),
+    Io(io::Error),
+    TomlParse(de::Error),
+    Task(String),
 }
 
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::RequiredFileReadError(_, _) => "Required File Read Error",
-            Error::IoError(_) => "IO Error",
-            Error::TomlParseError(_) => "Toml Parse Error",
+            Error::RequiredFileRead(_, _) => "Required File Read Error",
+            Error::Io(_) => "IO Error",
+            Error::TomlParse(_) => "Toml Parse Error",
+            Error::Task(_) => "Task Running Error",
         }
     }
 }
@@ -23,7 +25,7 @@ impl error::Error for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Error::RequiredFileReadError(ref file, ref e) =>
+            Error::RequiredFileRead(ref file, ref e) =>
                 write!(f, "Error while reading required file \"{}\": {}", file, e),
             _ => write!(f, "{:?}", self),
         }
@@ -32,12 +34,12 @@ impl Display for Error {
 
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
-        Error::IoError(error)
+        Error::Io(error)
     }
 }
 
 impl From<de::Error> for Error {
     fn from(error: de::Error) -> Self {
-        Error::TomlParseError(error)
+        Error::TomlParse(error)
     }
 }

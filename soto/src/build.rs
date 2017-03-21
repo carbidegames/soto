@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 use slog::Logger;
 
 use files::{SotoProjectFile, SotoLocalFile, SotoTaskFile};
+use task::{Task};
 use Error;
 
 /// Build a project in a directory.
@@ -48,21 +49,25 @@ fn handle_toml(log: &Logger, path: &Path) -> Result<(), Error> {
     };
 
     // We've got a file we want to process, now go process it
-    // TODO: Support receiving logging message from the task while it's running
     info!(log, "Processing with runner \"{}\"", data.runner);
-    /*let result = Task {
+    let result = Task {
         runner: data.runner,
         task_file: path.to_path_buf(),
-    }.run();*/
+    }.run();
 
-    // TODO: Handle result
+    // Log the actual result
+    match result {
+        Ok(_) => info!(log, "Completed successfully"),
+        Err(Error::Task(e)) => error!(log, "Error while running task: {}", e),
+        Err(e) => return Err(e),
+    }
 
     Ok(())
 }
 
 fn read_required<P: Deserialize>(directory: &PathBuf, file_name: &str) -> Result<P, Error> {
     read_toml(&file_in(directory, file_name))
-        .map_err(|e| Error::RequiredFileReadError(file_name.into(), Box::new(e)))
+        .map_err(|e| Error::RequiredFileRead(file_name.into(), Box::new(e)))
 }
 
 fn read_toml<P: Deserialize>(path: &Path) -> Result<P, Error> {

@@ -6,6 +6,7 @@ authors = ["Layl <LaylConway@users.noreply.github.com>"]
 [dependencies]
 serde = "0.9.11"
 serde_derive = "0.9.11"
+serde_json = "0.9.9"
 toml = "0.3.1"
 walkdir = "1.0.7"
 slog = "1.5.2"
