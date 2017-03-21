@@ -2,7 +2,7 @@
 runner = "soto-fbx"
 
 [prop]
-name = "test_cube"
+name = "layl_debug/test_cube"
 type = "static" # TODO: dynamic
 surface_prop = "default"
 

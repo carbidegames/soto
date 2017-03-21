@@ -50,7 +50,7 @@ fn handle_toml(log: &Logger, path: &Path) -> Result<(), Error> {
     let result = Task {
         runner: data.runner,
         task_file: path.to_path_buf(),
-    }.run();
+    }.run(&log);
 
     // Log the actual result
     match result {

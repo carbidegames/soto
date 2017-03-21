@@ -1,8 +1,11 @@
 use std::fmt::Display;
 use std::env;
-use std::process::Command;
+use std::process::{Stdio, Command};
 use std::path::PathBuf;
+use std::io::{BufReader, BufRead};
 use serde_json;
+use slog::Logger;
+
 use Error;
 
 /// Describes a task to be run.
@@ -12,7 +15,7 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self, log: &Logger) -> Result<(), Error> {
         // TODO: Support receiving logging message from the task while it's running
 
         // Create the task paramters which we need to send over
@@ -28,9 +31,11 @@ impl Task {
         ::std::fs::create_dir_all(task_params.target_dir)?;
 
         // Run the actual command
-        let result = Command::new(&self.runner)
+        let mut child = Command::new(&self.runner)
             .args(&[task_params_json])
-            .output()
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
             .map_err(|e| {
                 if let ::std::io::ErrorKind::NotFound = e.kind() {
                     Error::Task(format!(
@@ -41,15 +46,38 @@ impl Task {
                 }
             })?;
 
-        // Check what the result was
-        let result_str = ::std::str::from_utf8(&result.stdout).unwrap();
-        let err_str = ::std::str::from_utf8(&result.stderr).unwrap();
-        let result: TaskResult = serde_json::from_str(result_str)
-            .map_err(|e| Error::Task(format!("Result parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nStdout:\n{}Stderr:\n{}", e, result_str, err_str)))?;
+        // Loop read the messages we get back
+        let mut child_out = BufReader::new(child.stdout.as_mut().unwrap());
+        let mut message = String::new();
+        loop {
+            child_out.read_line(&mut message)?;
 
-        // If we got an error, return that as an error
-        if let Some(error) = result.error {
-            return Err(Error::Task(error));
+            // If the message is empty, the child unexpectedly closed
+            if message.len() == 0 {
+                return Err(Error::Task("Runner unexpectedly closed, this may not be a soto task runner or an internal error occurred.".into()));
+            }
+
+            // If it's not, try to parse the json we received
+            let result: TaskMessage = serde_json::from_str(&message)
+                .map_err(|e| Error::Task(format!(
+                    "Message parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nFull message received:\n{}", e, message
+                )))?;
+
+            // We have a valid result, see what it says
+            match result {
+                // A log message just needs to be passed through
+                TaskMessage::Log(text) => debug!(log, text),
+                // A result means this task is done
+                TaskMessage::Result(res) => {
+                    if let Some(error) = res.error {
+                        error!(log, error);
+                    }
+                    break;
+                }
+            }
+
+            // We aren't done yet, clear the previous message
+            message.clear();
         }
 
         Ok(())
@@ -78,7 +106,14 @@ pub fn task_wrapper<E: Display, F: FnOnce(TaskParameters) -> Result<(), E>>(task
     };
 
     // Print the result, so the caller can do something with it
-    println!("{}", serde_json::to_string(&result).unwrap());
+    let message = TaskMessage::Result(result);
+    println!("{}", serde_json::to_string(&message).unwrap());
+}
+
+/// Relays a debug logging message from a task back to soto.
+pub fn task_log<S: ToString>(text: S) {
+    let message = TaskMessage::Log(text.to_string());
+    println!("{}", serde_json::to_string(&message).unwrap());
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,4 +126,10 @@ pub struct TaskParameters {
 #[derive(Serialize, Deserialize)]
 pub struct TaskResult {
     pub error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum TaskMessage {
+    Log(String),
+    Result(TaskResult),
 }
