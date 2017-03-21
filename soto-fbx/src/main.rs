@@ -1,3 +1,4 @@
+extern crate cgmath;
 #[macro_use] extern crate serde_derive;
 extern crate soto;
 extern crate sotolib_fbx;
@@ -10,10 +11,11 @@ use std::fs::File;
 use std::io::{Write, BufReader};
 use std::process::{Command};
 
+use cgmath::{Matrix4, Deg, Vector4};
 use soto::task::{task_wrapper, task_log, TaskParameters};
 use soto::Error;
 use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name, friendly_name};
-use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt};
+use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt, SmdAnimationFrameBone};
 
 use task::SotoFbxTask;
 
@@ -40,22 +42,45 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
             // We've found a model, log that we're found it
             task_log(format!("Found model \"{}\"", friendly_name(&model.name)));
 
+            // Create a bone for this model
+            let bone_id = smd.new_bone(&id_name(&model.name).unwrap()).unwrap();
+
+            // Insert the default animation state into the SMD as 0th frame
+            let bone_anim = SmdAnimationFrameBone {
+                translation: model.translation,
+                rotation: [
+                    model.rotation[0] * 0.01745329252,
+                    model.rotation[1] * 0.01745329252,
+                    model.rotation[2] * 0.01745329252,
+                ],
+            };
+            smd.set_animation(0, bone_id, bone_anim);
+
+            // Create a multiplication matrix, we need this because SMD expects the vertices to be
+            // multiplied in advance for the idle frame.
+            let matrix =
+                Matrix4::from_translation(model.translation.into()) *
+                Matrix4::from_angle_z(Deg(model.rotation[2])) *
+                Matrix4::from_angle_y(Deg(model.rotation[1])) *
+                Matrix4::from_angle_x(Deg(model.rotation[0]));
+
             // For this model object, find the linked geometry
             for obj in fbx.children_of(model.id) {
                 if let &FbxObject::Geometry(ref geom) = obj {
-                    // We've got geometry, first get a new bone from the SMD for us to attach to
-                    let bone_id = smd.new_bone(&id_name(&model.name).unwrap()).unwrap();
-
                     // Add the actual triangles
                     let tris = geom.triangles();
                     for tri in tris {
                         // Turn the vertices in this triangle to SMD vertices
                         let mut smd_verts: [SmdVertex; 3] = Default::default();
                         for (i, vert) in tri.iter().enumerate() {
+                            // Multiply the vectors that need to be multiplied
+                            let pos = matrix * Vector4::new(vert.0[0], vert.0[1], vert.0[2], 1.0);
+                            let norm = matrix * Vector4::new(vert.1[0], vert.1[1], vert.1[2], 0.0);
+
                             smd_verts[i] = SmdVertex {
                                 parent_bone: 0, // This is overwritten by links
-                                position: vert.0,
-                                normal: vert.1,
+                                position: pos.truncate().into(),
+                                normal: norm.truncate().into(),
                                 uv: vert.2,
                                 links: vec!(
                                     SmdLink {
@@ -106,7 +131,7 @@ fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Result
     writeln!(file)?;
 
     // Prop information
-    writeln!(file, "$staticprop")?;
+    //writeln!(file, "$staticprop")?;
     writeln!(file, "$surfaceprop \"default\"")?;
     writeln!(file)?;
 
@@ -126,6 +151,7 @@ fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Result
     writeln!(file, "$collisionmodel \"{}\"", ref_mdl_name)?;
     writeln!(file, "{{")?;
     writeln!(file, "    $mass 1")?;
+    writeln!(file, "    $concave")?;
     writeln!(file, "}}")?;
     writeln!(file)?;
 
@@ -143,7 +169,7 @@ fn build_qc(qc_path: &PathBuf, params: &TaskParameters) -> Result<(), Error> {
     }
 
     // Now that we have studiomdl, run the compile
-    task_log(format!("Running compiling \"{}\"", qc_path.display()));
+    task_log(format!("Running studiomdl to compile \"{}\"", qc_path.display()));
     let output = Command::new(&studiomdl)
         .args(&[qc_path])
         .output()

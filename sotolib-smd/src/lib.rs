@@ -2,6 +2,8 @@ mod export;
 
 pub use export::SmdExportExt;
 
+use std::collections::HashMap;
+
 pub type BoneId = u32;
 
 pub struct SmdBone {
@@ -28,8 +30,19 @@ pub struct SmdTriangle {
     pub vertices: [SmdVertex; 3],
 }
 
+pub struct SmdAnimationFrameBone {
+    pub translation: [f32; 3],
+    pub rotation: [f32; 3],
+}
+
+#[derive(Default)]
+pub struct SmdAnimationFrame {
+    pub bones: HashMap<BoneId, SmdAnimationFrameBone>
+}
+
 pub struct Smd {
     pub bones: Vec<SmdBone>,
+    pub animation_frames: HashMap<i32, SmdAnimationFrame>,
     pub triangles: Vec<SmdTriangle>,
 }
 
@@ -37,6 +50,7 @@ impl Smd {
     pub fn new() -> Self {
         Smd {
             bones: Vec::new(),
+            animation_frames: HashMap::new(),
             triangles: Vec::new(),
         }
     }
@@ -63,5 +77,12 @@ impl Smd {
 
         // And finally return the new ID
         Some(id)
+    }
+
+    /// Sets the state of a bone at a specific frame, overwriting anything previously there.
+    pub fn set_animation(&mut self, frame: i32, bone_id: BoneId, bone: SmdAnimationFrameBone) {
+        let frame = self.animation_frames.entry(frame)
+            .or_insert_with(|| SmdAnimationFrame::default());
+        frame.bones.insert(bone_id, bone);
     }
 }

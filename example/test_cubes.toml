@@ -2,12 +2,12 @@
 runner = "soto-fbx"
 
 [prop]
-name = "layl_debug/test_cube"
+name = "layl_debug/test_cubes"
 type = "static" # TODO: dynamic
 surface_prop = "default"
 
 [model]
-reference = "test_cube.fbx" # TODO: @Reference to filter layer?
+reference = "test_cubes.fbx" # TODO: @Reference to filter layer?
 
 #TODO: [sequence.move]
 #file = "test_cube_move.fbx"

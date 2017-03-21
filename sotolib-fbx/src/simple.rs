@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+
+use fbx_direct::common::OwnedProperty;
+
 use {RawFbx, FbxNode};
 
 #[derive(Debug)]
@@ -147,22 +150,66 @@ pub struct FbxModel {
     pub id: i64,
     pub name: String,
     pub translation: [f32; 3],
+    pub rotation: [f32; 3],
 }
 
 impl FbxModel {
     fn from_node(node: &FbxNode) -> Self {
+        // Get a map of properties
+        let properties = read_properties(node.find_child("Properties70").unwrap());
+
         // Find the translation in the model
-        let translation: [f32; 3] = Default::default();
+        let mut translation: [f32; 3] = Default::default();
+        if let Some(trans) = properties.get("Lcl Translation") {
+            let values = trans.get_vec_f32().unwrap();
+            translation[0] = values[0];
+            translation[1] = values[1];
+            translation[2] = values[2];
+        }
+
+        // Same for rotation
+        let mut rotation: [f32; 3] = Default::default();
+        if let Some(rot) = properties.get("Lcl Rotation") {
+            let values = rot.get_vec_f32().unwrap();
+            rotation[0] = values[0];
+            rotation[1] = values[1];
+            rotation[2] = values[2];
+        }
 
         // Retrieve model parameter information
         let model = FbxModel {
             id: node.properties[0].get_i64().unwrap(),
             name: node.properties[1].get_string().unwrap().clone(),
             translation: translation,
+            rotation: rotation,
         };
 
         model
     }
+}
+
+fn read_properties(node: &FbxNode) -> HashMap<String, OwnedProperty> {
+    let mut properties = HashMap::new();
+    for property_node in &node.nodes {
+        // Get the property's name and value
+        let name = property_node.properties[0].get_string().unwrap().clone();
+        let mut value = property_node.properties[3].clone();
+
+        // If the value is an A, that means it's an array and we need to get the rest
+        if value.get_string() == Some(&"A".to_string()) {
+            let mut vec = Vec::new();
+            for p in &property_node.properties[4..] {
+                // TODO: Support anything other than f32 arrays
+                if let Some(v) = p.get_f32() {
+                    vec.push(v);
+                }
+            }
+            value = OwnedProperty::VecF32(vec);
+        }
+
+        properties.insert(name, value);
+    }
+    properties
 }
 
 /// Represents a connection within the FBX file. Connections are laid out (Child, Parent).

@@ -20,9 +20,20 @@ impl SmdExportExt for Smd {
         // Add an idle animation frame for all the bones
         // TODO: Allow animation to be defined
         writeln!(target, "skeleton")?;
-        writeln!(target, "time 0")?;
-        for bone in &self.bones {
-            writeln!(target, "{}   0.00000 0.00000 0.00000   0.00000 0.00000 0.00000", bone.id)?;
+        for (num, frame) in &self.animation_frames {
+            writeln!(target, "time {}", num)?;
+            for (bone_id, bone) in &frame.bones {
+                writeln!(target,
+                    "{}   {} {} {}   {} {} {}",
+                    bone_id,
+                    bone.translation[0],
+                    bone.translation[1],
+                    bone.translation[2],
+                    bone.rotation[0],
+                    bone.rotation[1],
+                    bone.rotation[2],
+                )?;
+            }
         }
         writeln!(target, "end")?;
 
