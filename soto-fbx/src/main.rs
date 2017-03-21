@@ -8,9 +8,9 @@ mod task;
 use std::fs::File;
 use std::io::BufReader;
 
-use soto::task::{task_wrapper, TaskParameters, TaskResult};
+use soto::task::{task_wrapper, TaskParameters};
 use soto::Error;
-use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, friendly_name, id_name};
+use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name};
 use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt};
 
 use task::SotoFbxTask;
@@ -24,8 +24,8 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     // First, read in the toml we got told to read
     let toml: SotoFbxTask = soto::read_toml(&params.target_toml)?;
 
-    // Read in the fbx
-    /*let file = BufReader::new(File::open("../debugref/test_cube.fbx").unwrap());
+    // Read in the fbx we got told to convert
+    let file = BufReader::new(File::open(toml.model.reference).unwrap());
     let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap());
 
     // Create a target SMD to export to
@@ -36,7 +36,8 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     for obj in &fbx.objects {
         if let &FbxObject::Model(ref model) = obj.1 {
             // We've found a model, log that we're found it
-            println!("Found model \"{}\"", friendly_name(&model.name));
+            // TODO: Add logging to the task runner API
+            //println!("Found model \"{}\"", friendly_name(&model.name));
 
             // For this model object, find the linked geometry
             for obj in fbx.children_of(model.id) {
@@ -76,8 +77,10 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     }
 
     // Export the SMD
-    let export_file = File::create("./test.smd").unwrap();
-    smd.export(export_file).unwrap();*/
+    let mut target_smd = params.working_dir.clone();
+    target_smd.push("test.smd");
+    let export_file = File::create(target_smd).unwrap();
+    smd.export(export_file).unwrap();
 
     Ok(())
 }

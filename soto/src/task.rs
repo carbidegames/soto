@@ -16,15 +16,20 @@ impl Task {
         // TODO: Support receiving logging message from the task while it's running
 
         // Create the task paramters which we need to send over
-        let task_params = serde_json::to_string(&TaskParameters {
+        let task_params = TaskParameters {
             working_dir: "./target/working".into(),
             target_dir: "./target/dist".into(),
             target_toml: self.task_file.clone(),
-        }).unwrap();
+        };
+        let task_params_json = serde_json::to_string(&task_params).unwrap();
+
+        // Create the directories this task is going to need
+        ::std::fs::create_dir_all(task_params.working_dir)?;
+        ::std::fs::create_dir_all(task_params.target_dir)?;
 
         // Run the actual command
         let result = Command::new(&self.runner)
-            .args(&[task_params])
+            .args(&[task_params_json])
             .output()
             .map_err(|e| {
                 if let ::std::io::ErrorKind::NotFound = e.kind() {
@@ -38,8 +43,9 @@ impl Task {
 
         // Check what the result was
         let result_str = ::std::str::from_utf8(&result.stdout).unwrap();
+        let err_str = ::std::str::from_utf8(&result.stderr).unwrap();
         let result: TaskResult = serde_json::from_str(result_str)
-            .map_err(|e| Error::Task(format!("Result parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nFull runner stdout:\n{}", e, result_str)))?;
+            .map_err(|e| Error::Task(format!("Result parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nStdout:\n{}Stderr:\n{}", e, result_str, err_str)))?;
 
         // If we got an error, return that as an error
         if let Some(error) = result.error {
