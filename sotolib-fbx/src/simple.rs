@@ -12,7 +12,7 @@ pub enum FbxObject {
     NotSupported(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FbxGeometry {
     pub id: i64,
     pub name: String,
@@ -30,6 +30,18 @@ pub struct FbxGeometry {
 
 impl FbxGeometry {
     fn from_node(node: &FbxNode) -> Self {
+        // First, make sure we've got a mesh
+        // TODO: Support other geometry types
+        let class = node.properties[2].get_string().unwrap();
+        if class != "Mesh" {
+            // It's not a mesh, just return an empty geometry
+            return FbxGeometry {
+                id: node.properties[0].get_i64().unwrap(),
+                name: node.properties[1].get_string().unwrap().clone(),
+                .. Default::default()
+            }
+        }
+
         // Read in the vertex data, which is just stored in the sub-node "Vertices"
         let vert_node = node.find_child("Vertices").unwrap();
         let vertices = node_to_vector3s(vert_node);

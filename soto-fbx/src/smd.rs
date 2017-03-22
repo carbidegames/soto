@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader};
 use std::path::PathBuf;
 
-use cgmath::{Matrix4, Deg, Vector4};
+use cgmath::{Matrix4, Deg, Rad, Vector4};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name, friendly_name, FbxGeometry, FbxModel};
@@ -33,7 +33,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
 
 fn add_model_to_smd(smd: &mut Smd, model: &FbxModel, fbx: &SimpleFbx) {
     // We've found a model, log that we're found it
-    task_log(format!("Found model \"{}\"", friendly_name(&model.name)));
+    task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&model.name)));
 
     // Create a bone for this model
     let bone_id = smd.new_bone(&id_name(&model.name).unwrap()).unwrap();
@@ -42,9 +42,9 @@ fn add_model_to_smd(smd: &mut Smd, model: &FbxModel, fbx: &SimpleFbx) {
     let bone_anim = SmdAnimationFrameBone {
         translation: model.translation,
         rotation: [
-            model.rotation[0] * 0.01745329252,
-            model.rotation[1] * 0.01745329252,
-            model.rotation[2] * 0.01745329252,
+            Rad::from(Deg(model.rotation[0])).0,
+            Rad::from(Deg(model.rotation[1])).0,
+            Rad::from(Deg(model.rotation[2])).0,
         ],
     };
     smd.set_animation(0, bone_id, bone_anim);
