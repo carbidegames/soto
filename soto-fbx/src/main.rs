@@ -4,18 +4,14 @@ extern crate soto;
 extern crate sotolib_fbx;
 extern crate sotolib_smd;
 
+mod qc;
+mod smd;
 mod task;
 
-use std::path::{PathBuf};
-use std::fs::File;
-use std::io::{Write, BufReader};
-use std::process::{Command};
+use std::path::PathBuf;
 
-use cgmath::{Matrix4, Deg, Vector4};
-use soto::task::{task_wrapper, task_log, TaskParameters};
+use soto::task::{task_wrapper, TaskParameters};
 use soto::Error;
-use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name, friendly_name};
-use sotolib_smd::{Smd, SmdVertex, SmdLink, SmdTriangle, SmdExportExt, SmdAnimationFrameBone};
 
 use task::SotoFbxTask;
 
@@ -28,163 +24,18 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     // First, read in the toml we got told to read
     let toml: SotoFbxTask = soto::read_toml(&params.target_toml)?;
 
-    // Read in the fbx we got told to convert
-    let file = BufReader::new(File::open(&toml.model.reference).unwrap());
-    let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap());
-
-    // Create a target SMD to export to
-    // TODO: Multiple export SMDs for animations (idle & user-specified)
-    let mut smd = Smd::new();
-
-    // Go over all model objects
-    for obj in &fbx.objects {
-        if let &FbxObject::Model(ref model) = obj.1 {
-            // We've found a model, log that we're found it
-            task_log(format!("Found model \"{}\"", friendly_name(&model.name)));
-
-            // Create a bone for this model
-            let bone_id = smd.new_bone(&id_name(&model.name).unwrap()).unwrap();
-
-            // Insert the default animation state into the SMD as 0th frame
-            let bone_anim = SmdAnimationFrameBone {
-                translation: model.translation,
-                rotation: [
-                    model.rotation[0] * 0.01745329252,
-                    model.rotation[1] * 0.01745329252,
-                    model.rotation[2] * 0.01745329252,
-                ],
-            };
-            smd.set_animation(0, bone_id, bone_anim);
-
-            // Create a multiplication matrix, we need this because SMD expects the vertices to be
-            // multiplied in advance for the idle frame.
-            let matrix =
-                Matrix4::from_translation(model.translation.into()) *
-                Matrix4::from_angle_z(Deg(model.rotation[2])) *
-                Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0]));
-
-            // For this model object, find the linked geometry
-            for obj in fbx.children_of(model.id) {
-                if let &FbxObject::Geometry(ref geom) = obj {
-                    // Add the actual triangles
-                    let tris = geom.triangles();
-                    for tri in tris {
-                        // Turn the vertices in this triangle to SMD vertices
-                        let mut smd_verts: [SmdVertex; 3] = Default::default();
-                        for (i, vert) in tri.iter().enumerate() {
-                            // Multiply the vectors that need to be multiplied
-                            let pos = matrix * Vector4::new(vert.0[0], vert.0[1], vert.0[2], 1.0);
-                            let norm = matrix * Vector4::new(vert.1[0], vert.1[1], vert.1[2], 0.0);
-
-                            smd_verts[i] = SmdVertex {
-                                parent_bone: 0, // This is overwritten by links
-                                position: pos.truncate().into(),
-                                normal: norm.truncate().into(),
-                                uv: vert.2,
-                                links: vec!(
-                                    SmdLink {
-                                        bone: bone_id,
-                                        weight: 1.0,
-                                    }
-                                )
-                            };
-                        }
-
-                        // Add the actual SMD triangle
-                        smd.triangles.push(SmdTriangle {
-                            material: "layl_test_texture".into(),
-                            vertices: smd_verts,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    // Export the SMD
-    let mut target_smd = params.working_dir.clone();
-    let ref_mdl_name = "reference.smd";
-    target_smd.push(ref_mdl_name);
-    let export_file = File::create(target_smd)?;
-    smd.export(export_file).unwrap();
+    // Generate the needed SMDs
+    let mut reference_smd = params.working_dir.clone();
+    reference_smd.push("reference.smd");
+    smd::create_reference_smd(&PathBuf::from(&toml.model.reference), &reference_smd)?;
 
     // Generate the QC
     let mut target_qc = params.working_dir.clone();
     target_qc.push("script.qc");
-    generate_qc(&target_qc, &toml, ref_mdl_name)?;
+    qc::generate_qc(&target_qc, &toml, "reference.smd")?;
 
     // Finally, run the model build
-    build_qc(&target_qc, &params)?;
-
-    Ok(())
-}
-
-fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Result<(), Error> {
-    let mut file = File::create(path)?;
-    writeln!(file, "// Generated by soto-fbx, do not edit manually")?;
-
-    // Generic data
-    writeln!(file, "$modelname \"{}.mdl\"", toml.prop.name)?;
-    writeln!(file, "$scale 16")?;
-    writeln!(file, "$upaxis Y")?;
-    writeln!(file)?;
-
-    // Prop information
-    writeln!(file, "$staticprop")?;
-    writeln!(file, "$surfaceprop \"default\"")?;
-    writeln!(file)?;
-
-    // Materials
-    writeln!(file, "$cdmaterials \"layl_test_texture/\"")?;
-    writeln!(file)?;
-
-    // Reference model data
-    writeln!(file, "$body shell \"{}\"", ref_mdl_name)?;
-    writeln!(file)?;
-
-    // Animation data
-    writeln!(file, "$sequence idle \"{}\"", ref_mdl_name)?;
-    writeln!(file)?;
-
-    // Physics data
-    writeln!(file, "$collisionmodel \"{}\"", ref_mdl_name)?;
-    writeln!(file, "{{")?;
-    writeln!(file, "    $mass 1")?;
-    writeln!(file, "    $concave")?;
-    writeln!(file, "}}")?;
-    writeln!(file)?;
-
-    Ok(())
-}
-
-fn build_qc(qc_path: &PathBuf, params: &TaskParameters) -> Result<(), Error> {
-    // First, find studiomdl.exe, it should be in the game's bin
-    let mut studiomdl = params.local.game.bin.clone();
-    studiomdl.push("studiomdl.exe");
-    if studiomdl.exists() {
-        task_log(format!("Found studiomdl at \"{}\"", studiomdl.display()));
-    } else {
-        return Err(Error::Task(format!("Unable to find studiomdl at \"{}\"", studiomdl.display())));
-    }
-
-    // Now that we have studiomdl, run the compile
-    task_log(format!("Running studiomdl to compile \"{}\"", qc_path.display()));
-    let output = Command::new(&studiomdl)
-        .args(&[qc_path])
-        .output()
-        .map_err(|e| Error::Io(e))?;
-
-    // Make sure it completed successfully
-    if !output.status.success() {
-        return Err(Error::Task(format!(
-            "Error during studiomdl compilation.\nStdout:\n{}\nStderr:\n{}",
-            ::std::str::from_utf8(&output.stdout).unwrap(),
-            ::std::str::from_utf8(&output.stderr).unwrap()
-        )));
-    }
-
-    // TODO: Copy files back to dest, studiomdl drops them in the game
+    qc::build_qc(&target_qc, &params)?;
 
     Ok(())
 }
