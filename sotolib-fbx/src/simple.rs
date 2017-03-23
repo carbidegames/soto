@@ -4,15 +4,28 @@ use fbx_direct::common::OwnedProperty;
 
 use {RawFbx, FbxNode};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FbxObject {
     Geometry(FbxGeometry),
     Model(FbxModel),
+    /// Virtual object representing the root of the file.
+    Root,
     /// Currently unsupported object type.
     NotSupported(String)
 }
 
-#[derive(Debug, Default)]
+impl FbxObject {
+    pub fn id(&self) -> i64 {
+        match *self {
+            FbxObject::Geometry(ref g) => g.id,
+            FbxObject::Model(ref m) => m.id,
+            FbxObject::Root => 0,
+            FbxObject::NotSupported(_) => -1,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct FbxGeometry {
     pub id: i64,
     pub name: String,
@@ -157,7 +170,7 @@ fn node_to_vector2s(node: &FbxNode) -> Vec<[f32; 2]> {
     vectors
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FbxModel {
     pub id: i64,
     pub name: String,

@@ -2,11 +2,13 @@ extern crate fbx_direct;
 
 mod raw;
 mod simple;
+mod tree;
 
 pub use fbx_direct::reader::Error as FbxDirectError;
 
 pub use self::raw::{RawFbx, FbxNode};
 pub use self::simple::{SimpleFbx, FbxModel, FbxGeometry, FbxConnection, FbxObject};
+pub use self::tree::{FbxObjectTreeNode};
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};

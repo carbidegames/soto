@@ -4,11 +4,13 @@ pub use export::SmdExportExt;
 
 use std::collections::HashMap;
 
-pub type BoneId = u32;
+pub type BoneId = i32;
 
+#[derive(Clone)]
 pub struct SmdBone {
     pub id: BoneId,
     pub name: String,
+    pub parent: Option<BoneId>,
 }
 
 pub struct SmdLink {
@@ -40,6 +42,7 @@ pub struct SmdAnimationFrame {
     pub bones: HashMap<BoneId, SmdAnimationFrameBone>
 }
 
+#[derive(Default)]
 pub struct Smd {
     pub bones: Vec<SmdBone>,
     pub animation_frames: HashMap<i32, SmdAnimationFrame>,
@@ -55,7 +58,7 @@ impl Smd {
         }
     }
 
-    pub fn new_bone(&mut self, name: &str) -> Option<u32> {
+    pub fn new_bone(&mut self, name: &str, parent: Option<BoneId>) -> Option<&SmdBone> {
         // First make sure this bone doesn't already exist
         if self.bones.iter().any(|b| b.name == name) {
             return None;
@@ -73,10 +76,11 @@ impl Smd {
         self.bones.push(SmdBone {
             id: id,
             name: name.into(),
+            parent: parent,
         });
 
-        // And finally return the new ID
-        Some(id)
+        // And finally return the new bone
+        Some(&self.bones[self.bones.len()-1])
     }
 
     /// Sets the state of a bone at a specific frame, overwriting anything previously there.

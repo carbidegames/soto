@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::env;
-use std::process::{Stdio, Command};
+use std::process::{Stdio, Command, Child};
 use std::path::PathBuf;
 use std::io::{BufReader, BufRead};
 use serde_json;
@@ -37,7 +37,7 @@ impl Task {
         ::std::fs::create_dir_all(task_params.target_dir)?;
 
         // Run the actual command
-        let mut child = Command::new(&self.runner)
+        let child = Command::new(&self.runner)
             .args(&[task_params_json])
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -51,9 +51,10 @@ impl Task {
                     Error::Io(e)
                 }
             })?;
+        let mut child = WaitGuard {child: child};
 
         // Loop read the messages we get back
-        let mut child_out = BufReader::new(child.stdout.as_mut().unwrap());
+        let mut child_out = BufReader::new(child.child.stdout.as_mut().unwrap());
         let mut message = String::new();
         loop {
             child_out.read_line(&mut message)?;
@@ -65,9 +66,12 @@ impl Task {
 
             // If it's not, try to parse the json we received
             let result: TaskMessage = serde_json::from_str(&message)
-                .map_err(|e| Error::Task(format!(
-                    "Message parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nFull message received:\n{}", e, message
-                )))?;
+                .map_err(|e| {
+                    error!(log, "An error has occurred, waiting for runner to close...");
+                    Error::Task(format!(
+                        "Message parse error: \"{}\"\nThis may not be a soto task runner or an internal error occurred.\nMessage:\n{}", e, message
+                    ))
+                })?;
 
             // We have a valid result, see what it says
             match result {
@@ -87,6 +91,16 @@ impl Task {
         }
 
         Ok(())
+    }
+}
+
+struct WaitGuard {
+    child: Child,
+}
+
+impl Drop for WaitGuard {
+    fn drop(&mut self) {
+        let _ = self.child.wait();
     }
 }
 
