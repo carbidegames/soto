@@ -35,7 +35,7 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     qc::generate_qc(&target_qc, &toml, "reference.smd")?;
 
     // Finally, run the model build
-    qc::build_qc(&target_qc, &params)?;
+    qc::build_qc(&target_qc, &params, &params.local.game.content)?;
 
     Ok(())
 }

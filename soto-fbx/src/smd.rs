@@ -17,7 +17,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
     // Go over all FBX root nodes and turn them into SMD data
     let mut smd = Smd::new();
     let matrix = Matrix4::identity();
-    process_fbx_node(&fbx_tree, &matrix, &mut smd, None);
+    process_fbx_node(&fbx_tree, &matrix, &mut smd, None)?;
 
     // Export the SMD
     let export_file = File::create(target_smd)?;
@@ -29,7 +29,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
 fn process_fbx_node(
     fbx_node: &FbxObjectTreeNode, matrix: &Matrix4<f32>,
     mut smd: &mut Smd, current_bone: Option<&SmdBone>,
-) {
+) -> Result<(), Error> {
     // Perform node type specific information
     match fbx_node.object {
         FbxObject::Geometry(ref geometry) => {
@@ -70,7 +70,7 @@ fn process_fbx_node(
 
             // Create a new bone and set the transformations
             let new_bone = smd.new_bone(&id_name(&model.name).unwrap(), current_bone.map(|b| b.id))
-                .expect("Duplicate bone name found!")
+                .ok_or_else(|| Error::Task(format!("Bone \"{}\" exists multiple times in the FBX", &model.name)))?
                 .clone(); // Clone needed to avoid a borrow since we need to mut borrow later
             let first_frame = SmdAnimationFrameBone {
                 translation: model.translation,
@@ -93,14 +93,16 @@ fn process_fbx_node(
 
             // Make sure the child nodes will receive this new bone
             for node in &fbx_node.nodes {
-                process_fbx_node(node, &matrix, smd, Some(&new_bone));
+                process_fbx_node(node, &matrix, smd, Some(&new_bone))?;
             }
         },
         FbxObject::Root | FbxObject::NotSupported(_) => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
-                process_fbx_node(node, matrix, smd, current_bone);
+                process_fbx_node(node, matrix, smd, current_bone)?;
             }
         }
     }
+
+    Ok(())
 }

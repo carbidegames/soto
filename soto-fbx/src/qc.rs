@@ -46,7 +46,7 @@ pub fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Re
     Ok(())
 }
 
-pub fn build_qc(qc_path: &PathBuf, params: &TaskParameters) -> Result<(), Error> {
+pub fn build_qc(qc_path: &PathBuf, params: &TaskParameters, game_dir: &PathBuf) -> Result<(), Error> {
     // First, find studiomdl.exe, it should be in the game's bin
     let mut studiomdl = params.local.game.bin.clone();
     studiomdl.push("studiomdl.exe");
@@ -57,9 +57,10 @@ pub fn build_qc(qc_path: &PathBuf, params: &TaskParameters) -> Result<(), Error>
     }
 
     // Now that we have studiomdl, run the compile
-    task_log(format!("Running studiomdl to compile \"{}\"", qc_path.display()));
+    task_log(format!("Running studiomdl to compile \"{}\" with as game dir \"{}\"", qc_path.display(), game_dir.display()));
     let output = Command::new(&studiomdl)
-        .args(&[qc_path])
+        .arg("-game").arg(game_dir)
+        .arg(qc_path.to_str().unwrap())
         .output()
         .map_err(|e| Error::Io(e))?;
 
