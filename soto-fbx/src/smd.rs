@@ -16,8 +16,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
 
     // Go over all FBX root nodes and turn them into SMD data
     let mut smd = Smd::new();
-    let matrix = Matrix4::identity();
-    process_fbx_node(&fbx_tree, &matrix, &mut smd, None)?;
+    process_fbx_node(&fbx_tree, &Matrix4::identity(), Vector3::new(0.0, 0.0, 0.0), &mut smd, None)?;
 
     // Export the SMD
     let export_file = File::create(target_smd)?;
@@ -27,7 +26,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
 }
 
 fn process_fbx_node(
-    fbx_node: &FbxObjectTreeNode, matrix: &Matrix4<f32>,
+    fbx_node: &FbxObjectTreeNode, matrix: &Matrix4<f32>, pivot: Vector3<f32>,
     mut smd: &mut Smd, current_bone: Option<&SmdBone>,
 ) -> Result<(), Error> {
     // Perform node type specific information
@@ -71,23 +70,17 @@ fn process_fbx_node(
             // Create a new transformation matrix
             let rot_pivot: Vector3<_> = model.rotation_pivot.into();
             let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
-            let local_matrix =
-                Matrix4::from_translation(model.translation.into()) *
-                rot_pivot_mat *
-                Matrix4::from_angle_z(Deg(model.rotation[2])) *
-                Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0])) *
-                rot_pivot_mat.invert().unwrap() * // This may need to be rotated in reverse (Bug?)
-                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
 
-            // Special matrix for bone pivot (Perhaps also for child nodes, and the other is only
-            // for vertices? See above (Bug?))
-            let local_matrix_for_bone_pivot =
-                Matrix4::from_translation(model.translation.into()) *
-                rot_pivot_mat *
+            let rotation =
                 Matrix4::from_angle_z(Deg(model.rotation[2])) *
                 Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0])) *
+                Matrix4::from_angle_x(Deg(model.rotation[0]));
+
+            let local_matrix_for_vertices =
+                Matrix4::from_translation(model.translation.into()) *
+                rot_pivot_mat *
+                rotation *
+                rot_pivot_mat.invert().unwrap() *
                 Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
 
             // Create a new bone and set the transformations
@@ -97,8 +90,9 @@ fn process_fbx_node(
             let first_frame = SmdAnimationFrameBone {
                 // This needs to be derived from the matrix to get the right location
                 translation: (
-                    local_matrix_for_bone_pivot *
-                    Vector4::new(0.0, 0.0, 0.0, 1.0)
+                    Matrix4::from_translation(-pivot) *
+                    local_matrix_for_vertices *
+                    Vector4::new(rot_pivot.x, rot_pivot.y, rot_pivot.z, 1.0)
                 ).truncate().into(),
                 rotation: [
                     Rad::from(Deg(model.rotation[0])).0,
@@ -108,18 +102,19 @@ fn process_fbx_node(
             };
             smd.set_animation(0, new_bone.id, first_frame);
 
-            // Make a new matrix for children
-            let matrix = matrix * local_matrix;
+            // Make new matrices for children
+            let matrix = matrix * local_matrix_for_vertices;
+            let pivot = rot_pivot;
 
             // Make sure the child nodes will receive this new bone
             for node in &fbx_node.nodes {
-                process_fbx_node(node, &matrix, smd, Some(&new_bone))?;
+                process_fbx_node(node, &matrix, pivot, smd, Some(&new_bone))?;
             }
         },
         FbxObject::Root | FbxObject::NotSupported(_) => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
-                process_fbx_node(node, matrix, smd, current_bone)?;
+                process_fbx_node(node, matrix, pivot, smd, current_bone)?;
             }
         }
     }
