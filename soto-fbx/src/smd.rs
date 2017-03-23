@@ -68,12 +68,38 @@ fn process_fbx_node(
         FbxObject::Model(ref model) => {
             task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&model.name)));
 
+            // Create a new transformation matrix
+            let rot_pivot: Vector3<_> = model.rotation_pivot.into();
+            let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
+            let local_matrix =
+                Matrix4::from_translation(model.translation.into()) *
+                rot_pivot_mat *
+                Matrix4::from_angle_z(Deg(model.rotation[2])) *
+                Matrix4::from_angle_y(Deg(model.rotation[1])) *
+                Matrix4::from_angle_x(Deg(model.rotation[0])) *
+                rot_pivot_mat.invert().unwrap() * // This may need to be rotated in reverse (Bug?)
+                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
+
+            // Special matrix for bone pivot (Perhaps also for child nodes, and the other is only
+            // for vertices? See above (Bug?))
+            let local_matrix_for_bone_pivot =
+                Matrix4::from_translation(model.translation.into()) *
+                rot_pivot_mat *
+                Matrix4::from_angle_z(Deg(model.rotation[2])) *
+                Matrix4::from_angle_y(Deg(model.rotation[1])) *
+                Matrix4::from_angle_x(Deg(model.rotation[0])) *
+                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
+
             // Create a new bone and set the transformations
             let new_bone = smd.new_bone(&id_name(&model.name).unwrap(), current_bone.map(|b| b.id))
                 .ok_or_else(|| Error::Task(format!("Bone \"{}\" exists multiple times in the FBX", &model.name)))?
                 .clone(); // Clone needed to avoid a borrow since we need to mut borrow later
             let first_frame = SmdAnimationFrameBone {
-                translation: model.translation,
+                // This needs to be derived from the matrix to get the right location
+                translation: (
+                    local_matrix_for_bone_pivot *
+                    Vector4::new(0.0, 0.0, 0.0, 1.0)
+                ).truncate().into(),
                 rotation: [
                     Rad::from(Deg(model.rotation[0])).0,
                     Rad::from(Deg(model.rotation[1])).0,
@@ -82,18 +108,8 @@ fn process_fbx_node(
             };
             smd.set_animation(0, new_bone.id, first_frame);
 
-            // Create a new transformation matrix for child nodes
-            let rot_pivot: Vector3<_> = model.rotation_pivot.into();
-            let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
-            let matrix =
-                matrix *
-                Matrix4::from_translation(model.translation.into()) *
-                rot_pivot_mat *
-                Matrix4::from_angle_z(Deg(model.rotation[2])) *
-                Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0])) *
-                rot_pivot_mat.invert().unwrap() * // This may need to be rotated in reverse
-                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
+            // Make a new matrix for children
+            let matrix = matrix * local_matrix;
 
             // Make sure the child nodes will receive this new bone
             for node in &fbx_node.nodes {
