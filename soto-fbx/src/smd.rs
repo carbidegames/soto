@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader};
 use std::path::PathBuf;
 
-use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix};
+use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name, friendly_name, FbxObjectTreeNode};
@@ -83,12 +83,16 @@ fn process_fbx_node(
             smd.set_animation(0, new_bone.id, first_frame);
 
             // Create a new transformation matrix for child nodes
+            let rot_pivot: Vector3<_> = model.rotation_pivot.into();
+            let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
             let matrix =
                 matrix *
                 Matrix4::from_translation(model.translation.into()) *
+                rot_pivot_mat *
                 Matrix4::from_angle_z(Deg(model.rotation[2])) *
                 Matrix4::from_angle_y(Deg(model.rotation[1])) *
                 Matrix4::from_angle_x(Deg(model.rotation[0])) *
+                rot_pivot_mat.invert().unwrap() * // This may need to be rotated in reverse
                 Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
 
             // Make sure the child nodes will receive this new bone

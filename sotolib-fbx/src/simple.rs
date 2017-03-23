@@ -177,6 +177,7 @@ pub struct FbxModel {
     pub translation: [f32; 3],
     pub rotation: [f32; 3],
     pub scale: [f32; 3],
+    pub rotation_pivot: [f32; 3],
 }
 
 impl FbxModel {
@@ -204,11 +205,20 @@ impl FbxModel {
 
         // Same for scale
         let mut scale: [f32; 3] = [1.0, 1.0, 1.0];
-        if let Some(rot) = properties.get("Lcl Scaling") {
-            let values = rot.get_vec_f32().unwrap();
+        if let Some(sca) = properties.get("Lcl Scaling") {
+            let values = sca.get_vec_f32().unwrap();
             scale[0] = values[0];
             scale[1] = values[1];
             scale[2] = values[2];
+        }
+
+        // Same for pivot
+        let mut rotation_pivot: [f32; 3] = Default::default();
+        if let Some(piv) = properties.get("RotationPivot") {
+            let values = piv.get_vec_f32().unwrap();
+            rotation_pivot[0] = values[0];
+            rotation_pivot[1] = values[1];
+            rotation_pivot[2] = values[2];
         }
 
         // Retrieve model parameter information
@@ -218,6 +228,7 @@ impl FbxModel {
             translation: translation,
             rotation: rotation,
             scale: scale,
+            rotation_pivot: rotation_pivot,
         };
 
         model
@@ -227,21 +238,19 @@ impl FbxModel {
 fn read_properties(node: &FbxNode) -> HashMap<String, OwnedProperty> {
     let mut properties = HashMap::new();
     for property_node in &node.nodes {
-        // Get the property's name and value
+        // Get the property's name and flags
         let name = property_node.properties[0].get_string().unwrap().clone();
-        let mut value = property_node.properties[3].clone();
+        //let flags = property_node.properties[3].clone();
 
-        // If the value is an A, that means it's an array and we need to get the rest
-        if value.get_string() == Some(&"A".to_string()) {
-            let mut vec = Vec::new();
-            for p in &property_node.properties[4..] {
-                // TODO: Support anything other than f32 arrays
-                if let Some(v) = p.get_f32() {
-                    vec.push(v);
-                }
+        // Read in the rest of the values
+        let mut vec = Vec::new();
+        for p in &property_node.properties[4..] {
+            // TODO: Support anything other than a f32 array
+            if let Some(v) = p.get_f32() {
+                vec.push(v);
             }
-            value = OwnedProperty::VecF32(vec);
         }
+        let value = OwnedProperty::VecF32(vec);
 
         properties.insert(name, value);
     }
