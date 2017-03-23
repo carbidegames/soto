@@ -176,6 +176,7 @@ pub struct FbxModel {
     pub name: String,
     pub translation: [f32; 3],
     pub rotation: [f32; 3],
+    pub scale: [f32; 3],
 }
 
 impl FbxModel {
@@ -201,12 +202,22 @@ impl FbxModel {
             rotation[2] = values[2];
         }
 
+        // Same for scale
+        let mut scale: [f32; 3] = [1.0, 1.0, 1.0];
+        if let Some(rot) = properties.get("Lcl Scaling") {
+            let values = rot.get_vec_f32().unwrap();
+            scale[0] = values[0];
+            scale[1] = values[1];
+            scale[2] = values[2];
+        }
+
         // Retrieve model parameter information
         let model = FbxModel {
             id: node.properties[0].get_i64().unwrap(),
             name: node.properties[1].get_string().unwrap().clone(),
             translation: translation,
             rotation: rotation,
+            scale: scale,
         };
 
         model

@@ -88,7 +88,8 @@ fn process_fbx_node(
                 Matrix4::from_translation(model.translation.into()) *
                 Matrix4::from_angle_z(Deg(model.rotation[2])) *
                 Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0]));
+                Matrix4::from_angle_x(Deg(model.rotation[0])) *
+                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
 
             // Make sure the child nodes will receive this new bone
             for node in &fbx_node.nodes {
