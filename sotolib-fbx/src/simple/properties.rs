@@ -1,9 +1,10 @@
+use std::collections::HashMap;
 use {RawNode, OwnedProperty};
 
 #[derive(Default, Debug, Clone)]
 pub struct Property {
-    name: String,
-    values: Vec<OwnedProperty>
+    pub name: String,
+    pub values: Vec<OwnedProperty>
 }
 
 impl Property {
@@ -13,7 +14,15 @@ impl Property {
             values: node.properties[4..].iter().map(|v| v.clone()).collect(),
         }
     }
+
+    pub fn to_vector3(&self) -> [f32; 3] {
+        [self.values[0].get_f32().unwrap(),
+        self.values[1].get_f32().unwrap(),
+        self.values[2].get_f32().unwrap()]
+    }
 }
+
+pub type Properties = HashMap<String, Property>;
 
 #[cfg(test)]
 mod tests {

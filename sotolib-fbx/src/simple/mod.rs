@@ -4,11 +4,11 @@ mod object;
 mod properties;
 
 pub use self::geometry::{Geometry};
-pub use self::model::{Model};
+pub use self::model::{Model, ModelProperties};
 pub use self::object::{Object, ObjectType};
-pub use self::properties::Property;
+pub use self::properties::{Property, Properties};
 
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use {RawFbx};
 
 /// Represents a connection within the FBX file. Connections are laid out (Child, Parent).

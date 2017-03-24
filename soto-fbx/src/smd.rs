@@ -6,7 +6,7 @@ use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
-use sotolib_fbx::simple::{SimpleFbx, ObjectType};
+use sotolib_fbx::simple::{SimpleFbx, ObjectType, ModelProperties};
 use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdExportExt, SmdAnimationFrameBone, SmdBone};
 
 pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), Error> {
@@ -65,24 +65,29 @@ fn process_fbx_node(
                 });
             }
         },
-        ObjectType::Model(ref model) => {
+        ObjectType::Model(ref _model) => {
             task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&fbx_node.object.name)));
+            let properties = ModelProperties::from_generic(&fbx_node.object.properties);
 
             // Create a new transformation matrix
-            let rot_pivot: Vector3<_> = model.rotation_pivot.into();
+            let rot_pivot: Vector3<_> = properties.rotation_pivot.into();
             let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
 
             let rotation =
-                Matrix4::from_angle_z(Deg(model.rotation[2])) *
-                Matrix4::from_angle_y(Deg(model.rotation[1])) *
-                Matrix4::from_angle_x(Deg(model.rotation[0]));
+                Matrix4::from_angle_z(Deg(properties.rotation[2])) *
+                Matrix4::from_angle_y(Deg(properties.rotation[1])) *
+                Matrix4::from_angle_x(Deg(properties.rotation[0]));
 
             let local_matrix_for_vertices =
-                Matrix4::from_translation(model.translation.into()) *
+                Matrix4::from_translation(properties.translation.into()) *
                 rot_pivot_mat *
                 rotation *
                 rot_pivot_mat.invert().unwrap() *
-                Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
+                Matrix4::from_nonuniform_scale(
+                    properties.scale[0],
+                    properties.scale[1],
+                    properties.scale[2]
+                );
 
             // Create a new bone and set the transformations
             let new_bone = smd.new_bone(
@@ -102,9 +107,9 @@ fn process_fbx_node(
                     Vector4::new(rot_pivot.x, rot_pivot.y, rot_pivot.z, 1.0)
                 ).truncate().into(),
                 rotation: [
-                    Rad::from(Deg(model.rotation[0])).0,
-                    Rad::from(Deg(model.rotation[1])).0,
-                    Rad::from(Deg(model.rotation[2])).0,
+                    Rad::from(Deg(properties.rotation[0])).0,
+                    Rad::from(Deg(properties.rotation[1])).0,
+                    Rad::from(Deg(properties.rotation[2])).0,
                 ],
             };
             smd.set_animation(0, new_bone.id, first_frame);

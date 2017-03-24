@@ -1,11 +1,11 @@
-use simple::{Geometry, Model, Property};
+use simple::{Geometry, Model, Property, Properties};
 use {RawNode};
 
 #[derive(Debug, Clone)]
 pub struct Object {
     pub id: i64,
     pub name: String,
-    properties: Vec<Property>,
+    pub properties: Properties,
     /// Contains the type and type-specific data.
     pub class: ObjectType,
 }
@@ -15,7 +15,7 @@ impl Object {
         Object {
             id: 0,
             name: "Root".into(),
-            properties: Vec::new(),
+            properties: Properties::new(),
             class: ObjectType::Root,
         }
     }
@@ -26,9 +26,14 @@ impl Object {
         let name = node.properties[1].get_string().unwrap().clone();
 
         // Properties, of which there may be none
-        let properties = node.find_child("Properties70")
-            .map(|p| p.children.iter().map(|c| Property::from_node(c)).collect())
-            .unwrap_or_else(|| Vec::new());
+        let properties: Properties = node.find_child("Properties70")
+            .map(|p|
+                p.children.iter()
+                    .map(|c| Property::from_node(c))
+                    .map(|p| (p.name.clone(), p))
+                    .collect()
+            )
+            .unwrap_or_else(|| Properties::new());
 
         // Specific object type
         let class = match node.name.as_str() {
