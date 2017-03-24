@@ -33,3 +33,19 @@ pub enum ObjectType {
     /// Currently unsupported object type.
     NotSupported(String)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /*#[test]
+    fn it_parses_id() {
+        let expected_id = 123454321;
+        let obj = Object::from_node(RawNode {
+            name: "Smorgasbord".into(),
+            properties: vec!(expected_id),
+            children: Vec::new(),
+        });
+        assert!(obj.id == expected_id);
+    }*/
+}
