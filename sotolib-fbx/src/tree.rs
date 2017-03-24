@@ -1,12 +1,12 @@
-use {SimpleFbx, Object};
+use simple::{SimpleFbx, Object};
 
 #[derive(Debug)]
-pub struct FbxObjectTreeNode {
-    pub nodes: Vec<FbxObjectTreeNode>,
+pub struct ObjectTreeNode {
+    pub nodes: Vec<ObjectTreeNode>,
     pub object: Object,
 }
 
-impl FbxObjectTreeNode {
+impl ObjectTreeNode {
     pub fn from_simple(fbx: &SimpleFbx) -> Self {
         Self::from_object(fbx, Object::new_root())
     }
@@ -19,7 +19,7 @@ impl FbxObjectTreeNode {
             nodes.push(Self::from_object(fbx, child.clone()));
         }
 
-        FbxObjectTreeNode {
+        ObjectTreeNode {
             nodes: nodes,
             object: obj
         }

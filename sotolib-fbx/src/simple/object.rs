@@ -1,10 +1,11 @@
-use {RawNode, Geometry, Model};
+use simple::{Geometry, Model, Properties};
+use {RawNode};
 
 #[derive(Debug, Clone)]
 pub struct Object {
     pub id: i64,
     pub name: String,
-    //properties: ObjectProperties,
+    properties: Properties,
     /// Contains the type and type-specific data.
     pub class: ObjectType,
 }
@@ -13,8 +14,9 @@ impl Object {
     pub fn new_root() -> Self {
         Object {
             id: 0,
+            name: "Root".into(),
+            properties: Properties::default(),
             class: ObjectType::Root,
-            name: "Root".into()
         }
     }
 
@@ -39,6 +41,7 @@ impl Object {
         Object {
             id: id,
             class: class,
+            properties: Properties::from_node(node.find_child("Properties70").unwrap()),
             name: name,
         }
     }

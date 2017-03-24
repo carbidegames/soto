@@ -5,14 +5,15 @@ use std::path::PathBuf;
 use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
 use soto::task::{task_log};
 use soto::Error;
-use sotolib_fbx::{RawFbx, SimpleFbx, ObjectType, id_name, friendly_name, FbxObjectTreeNode};
+use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
+use sotolib_fbx::simple::{SimpleFbx, ObjectType};
 use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdExportExt, SmdAnimationFrameBone, SmdBone};
 
 pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
     let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap());
-    let fbx_tree = FbxObjectTreeNode::from_simple(&fbx);
+    let fbx_tree = ObjectTreeNode::from_simple(&fbx);
 
     // Go over all FBX root nodes and turn them into SMD data
     let mut smd = Smd::new();
@@ -26,7 +27,7 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
 }
 
 fn process_fbx_node(
-    fbx_node: &FbxObjectTreeNode, matrix: &Matrix4<f32>, pivot: Vector3<f32>,
+    fbx_node: &ObjectTreeNode, matrix: &Matrix4<f32>, pivot: Vector3<f32>,
     mut smd: &mut Smd, current_bone: Option<&SmdBone>,
 ) -> Result<(), Error> {
     // Perform node type specific information
