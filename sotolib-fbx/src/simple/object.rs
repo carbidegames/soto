@@ -1,32 +1,43 @@
 use std::collections::HashMap;
-
 use fbx_direct::common::OwnedProperty;
-
-use {RawFbx, FbxNode};
+use {RawNode};
 
 #[derive(Debug, Clone)]
-pub enum FbxObject {
-    Geometry(FbxGeometry),
-    Model(FbxModel),
+pub struct Object {
+    //properties: ObjectProperties,
+    /// Contains the type and type-specific data.
+    pub class: ObjectType,
+}
+
+impl Object {
+    pub fn new_root() -> Self {
+        Object {
+            class: ObjectType::Root,
+        }
+    }
+
+    pub fn id(&self) -> i64 {
+        match self.class {
+            ObjectType::Geometry(ref g) => g.id,
+            ObjectType::Model(ref m) => m.id,
+            ObjectType::Root => 0,
+            ObjectType::NotSupported(_) => -1,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ObjectType {
+    Geometry(Geometry),
+    Model(Model),
     /// Virtual object representing the root of the file.
     Root,
     /// Currently unsupported object type.
     NotSupported(String)
 }
 
-impl FbxObject {
-    pub fn id(&self) -> i64 {
-        match *self {
-            FbxObject::Geometry(ref g) => g.id,
-            FbxObject::Model(ref m) => m.id,
-            FbxObject::Root => 0,
-            FbxObject::NotSupported(_) => -1,
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone)]
-pub struct FbxGeometry {
+pub struct Geometry {
     pub id: i64,
     pub name: String,
     /// Vertices that make up the polygon.
@@ -41,14 +52,14 @@ pub struct FbxGeometry {
     pub uvs: Vec<[f32; 2]>,
 }
 
-impl FbxGeometry {
-    fn from_node(node: &FbxNode) -> Self {
+impl Geometry {
+    pub fn from_node(node: &RawNode) -> Self {
         // First, make sure we've got a mesh
         // TODO: Support other geometry types
         let class = node.properties[2].get_string().unwrap();
         if class != "Mesh" {
             // It's not a mesh, just return an empty geometry
-            return FbxGeometry {
+            return Geometry {
                 id: node.properties[0].get_i64().unwrap(),
                 name: node.properties[1].get_string().unwrap().clone(),
                 .. Default::default()
@@ -110,7 +121,7 @@ impl FbxGeometry {
         }
 
         // Finish off the geometry type
-        FbxGeometry {
+        Geometry {
             id: node.properties[0].get_i64().unwrap(),
             name: node.properties[1].get_string().unwrap().clone(),
             vertices: vertices,
@@ -148,7 +159,7 @@ impl FbxGeometry {
     }
 }
 
-fn node_to_vector3s(node: &FbxNode) -> Vec<[f32; 3]> {
+fn node_to_vector3s(node: &RawNode) -> Vec<[f32; 3]> {
     let mut vectors = Vec::new();
 
     for val in node.properties[0].get_vec_f32().unwrap().chunks(3) {
@@ -159,7 +170,7 @@ fn node_to_vector3s(node: &FbxNode) -> Vec<[f32; 3]> {
     vectors
 }
 
-fn node_to_vector2s(node: &FbxNode) -> Vec<[f32; 2]> {
+fn node_to_vector2s(node: &RawNode) -> Vec<[f32; 2]> {
     let mut vectors = Vec::new();
 
     for val in node.properties[0].get_vec_f32().unwrap().chunks(2) {
@@ -171,7 +182,7 @@ fn node_to_vector2s(node: &FbxNode) -> Vec<[f32; 2]> {
 }
 
 #[derive(Debug, Clone)]
-pub struct FbxModel {
+pub struct Model {
     pub id: i64,
     pub name: String,
     pub translation: [f32; 3],
@@ -180,8 +191,8 @@ pub struct FbxModel {
     pub rotation_pivot: [f32; 3],
 }
 
-impl FbxModel {
-    fn from_node(node: &FbxNode) -> Self {
+impl Model {
+    pub fn from_node(node: &RawNode) -> Self {
         // Get a map of properties
         let properties = read_properties(node.find_child("Properties70").unwrap());
 
@@ -222,7 +233,7 @@ impl FbxModel {
         }
 
         // Retrieve model parameter information
-        let model = FbxModel {
+        let model = Model {
             id: node.properties[0].get_i64().unwrap(),
             name: node.properties[1].get_string().unwrap().clone(),
             translation: translation,
@@ -235,9 +246,9 @@ impl FbxModel {
     }
 }
 
-fn read_properties(node: &FbxNode) -> HashMap<String, OwnedProperty> {
+fn read_properties(node: &RawNode) -> HashMap<String, OwnedProperty> {
     let mut properties = HashMap::new();
-    for property_node in &node.nodes {
+    for property_node in &node.children {
         // Get the property's name and flags
         let name = property_node.properties[0].get_string().unwrap().clone();
         //let flags = property_node.properties[3].clone();
@@ -255,94 +266,4 @@ fn read_properties(node: &FbxNode) -> HashMap<String, OwnedProperty> {
         properties.insert(name, value);
     }
     properties
-}
-
-/// Represents a connection within the FBX file. Connections are laid out (Child, Parent).
-#[derive(Debug)]
-pub enum FbxConnection {
-    /// Object ID to Object ID connections.
-    ObjectObject(i64, i64),
-    /// Currently unsupported connection type.
-    NotSupported(String),
-}
-
-#[derive(Debug)]
-pub struct SimpleFbx {
-    pub objects: HashMap<i64, FbxObject>,
-    pub connections: Vec<FbxConnection>,
-}
-
-impl SimpleFbx {
-    pub fn from_raw(fbx: &RawFbx) -> Self {
-        SimpleFbx {
-            objects: get_objects(fbx),
-            connections: get_connections(fbx),
-        }
-    }
-
-    /// Gets all objects that are linked as children of another object by the parent's id.
-    pub fn children_of(&self, id: i64) -> Vec<&FbxObject> {
-        let mut objs = Vec::new();
-
-        // Go through all connections
-        for connection in &self.connections {
-            if let &FbxConnection::ObjectObject(child, parent) = connection {
-                if parent == id {
-                    // We've found one, look it up and add it
-                    objs.push(&self.objects[&child])
-                }
-            }
-        }
-
-        objs
-    }
-}
-
-fn get_objects(fbx: &RawFbx) -> HashMap<i64, FbxObject> {
-    // Get the node for objects itself
-    let objects = fbx.nodes.iter().find(|n| n.name == "Objects").unwrap();
-    let mut objs_map = HashMap::new();
-
-    // Go through all the nodes in there
-    for node in &objects.nodes {
-        // Send this node over to the appropriate converter
-        match node.name.as_str() {
-            "Geometry" => {
-                let geom = FbxGeometry::from_node(node);
-                objs_map.insert(geom.id, FbxObject::Geometry(geom));
-            }
-            "Model" => {
-                let model = FbxModel::from_node(node);
-                objs_map.insert(model.id, FbxObject::Model(model));
-            },
-            _ => {
-                objs_map.insert(
-                    node.properties[0].get_i64().unwrap(),
-                    FbxObject::NotSupported(node.name.clone())
-                );
-            },
-        }
-    }
-
-    objs_map
-}
-
-fn get_connections(fbx: &RawFbx) -> Vec<FbxConnection> {
-    // Get the node for connections itself
-    let connections = fbx.nodes.iter().find(|n| n.name == "Connections").unwrap();
-    let mut con_vec = Vec::new();
-
-    // Go through all the nodes in there
-    for node in &connections.nodes {
-        let con = match node.properties[0].get_string().unwrap().as_str() {
-            "OO" => FbxConnection::ObjectObject(
-                node.properties[1].get_i64().unwrap(),
-                node.properties[2].get_i64().unwrap(),
-            ),
-            other => FbxConnection::NotSupported(other.to_string())
-        };
-        con_vec.push(con);
-    }
-
-    con_vec
 }

@@ -6,6 +6,8 @@ toolset.*
 *This project is under heavy development and it is very likely that it won't work
 for you.*
 
+**SoTo is made with FBX 2016/2017 as reference, other versions may not work.**
+
 ## Why SoTo
 So you're working on your next big hat project, it's at least 20% more hat than
 your previous hats, why should you use SoTo? Unlike common 3D editor plugins

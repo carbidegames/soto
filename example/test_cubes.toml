@@ -2,13 +2,13 @@
 runner = "soto-fbx"
 
 [prop]
-name = "layl_debug/test_cubes"
-type = "static" # TODO: dynamic
-surface_prop = "default"
+name = "layl_debug/test_cubes" # TODO: Make use of prefix and relative path
+type = "static" # TODO: Add implementation
+surface_prop = "default" # TODO: Add implementation
 
 [model]
-reference = "test_cubes.fbx" # TODO: @Reference to filter layer?
+reference = "test_cubes.fbx" # TODO: Add filters
 
-#TODO: [sequence.move]
-#file = "test_cube_move.fbx"
-#params = "loop fps 30"
+[sequence.move] # TODO: Add implementation
+file = "test_cube_move.fbx"
+params = "loop fps 30"

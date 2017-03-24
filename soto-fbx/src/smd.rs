@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
 use soto::task::{task_log};
 use soto::Error;
-use sotolib_fbx::{RawFbx, SimpleFbx, FbxObject, id_name, friendly_name, FbxObjectTreeNode};
+use sotolib_fbx::{RawFbx, SimpleFbx, ObjectType, id_name, friendly_name, FbxObjectTreeNode};
 use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdExportExt, SmdAnimationFrameBone, SmdBone};
 
 pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), Error> {
@@ -30,8 +30,8 @@ fn process_fbx_node(
     mut smd: &mut Smd, current_bone: Option<&SmdBone>,
 ) -> Result<(), Error> {
     // Perform node type specific information
-    match fbx_node.object {
-        FbxObject::Geometry(ref geometry) => {
+    match fbx_node.object.class {
+        ObjectType::Geometry(ref geometry) => {
             // Add triangles to parent node
             let tris = geometry.triangles();
             for tri in tris {
@@ -64,7 +64,7 @@ fn process_fbx_node(
                 });
             }
         },
-        FbxObject::Model(ref model) => {
+        ObjectType::Model(ref model) => {
             task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&model.name)));
 
             // Create a new transformation matrix
@@ -111,7 +111,7 @@ fn process_fbx_node(
                 process_fbx_node(node, &matrix, pivot, smd, Some(&new_bone))?;
             }
         },
-        FbxObject::Root | FbxObject::NotSupported(_) => {
+        ObjectType::Root | ObjectType::NotSupported(_) => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
                 process_fbx_node(node, matrix, pivot, smd, current_bone)?;

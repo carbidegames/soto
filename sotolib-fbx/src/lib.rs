@@ -6,27 +6,27 @@ mod tree;
 
 pub use fbx_direct::reader::Error as FbxDirectError;
 
-pub use self::raw::{RawFbx, FbxNode};
-pub use self::simple::{SimpleFbx, FbxModel, FbxGeometry, FbxConnection, FbxObject};
+pub use self::raw::{RawFbx, RawNode};
+pub use self::simple::object::{Object, ObjectType, Model, Geometry};
+pub use self::simple::{SimpleFbx, FbxConnection};
 pub use self::tree::{FbxObjectTreeNode};
 
-use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
-pub enum FbxError {
+pub enum Error {
     FbxDirect(FbxDirectError)
 }
 
-impl Error for FbxError {
+impl ::std::error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            FbxError::FbxDirect(_) => "fbx_direct Parsing Error",
+            Error::FbxDirect(_) => "fbx_direct Parsing Error",
         }
     }
 }
 
-impl Display for FbxError {
+impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }

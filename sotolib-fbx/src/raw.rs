@@ -3,28 +3,28 @@ use std::io::{Read};
 use fbx_direct::common::OwnedProperty;
 use fbx_direct::reader::{FbxEvent, EventReader};
 
-use {FbxDirectError, FbxError};
+use {FbxDirectError, Error};
 
 #[derive(Debug)]
-pub struct FbxNode {
+pub struct RawNode {
     pub name: String,
     pub properties: Vec<OwnedProperty>,
-    pub nodes: Vec<FbxNode>,
+    pub children: Vec<RawNode>,
 }
 
-impl FbxNode {
+impl RawNode {
     fn parse<R: Read>(name: String, properties: Vec<OwnedProperty>, parser: &mut EventReader<R>) -> Result<Self, FbxDirectError> {
-        let mut node = FbxNode {
+        let mut node = RawNode {
             name: name,
             properties: properties,
-            nodes: Vec::new(),
+            children: Vec::new(),
         };
 
         loop {
             match parser.next()? {
                 FbxEvent::StartNode { name, properties } => {
-                    let new_node = FbxNode::parse(name, properties, parser)?;
-                    node.nodes.push(new_node);
+                    let new_node = RawNode::parse(name, properties, parser)?;
+                    node.children.push(new_node);
                 },
                 FbxEvent::EndNode => break,
                 _ => {}
@@ -34,18 +34,18 @@ impl FbxNode {
         Ok(node)
     }
 
-    pub fn find_child(&self, name: &str) -> Option<&FbxNode> {
-        self.nodes.iter().find(|c| c.name == name)
+    pub fn find_child(&self, name: &str) -> Option<&RawNode> {
+        self.children.iter().find(|c| c.name == name)
     }
 }
 
 #[derive(Debug)]
 pub struct RawFbx {
-    pub nodes: Vec<FbxNode>,
+    pub nodes: Vec<RawNode>,
 }
 
 impl RawFbx {
-    pub fn parse<R: Read>(read: R) -> Result<Self, FbxError> {
+    pub fn parse<R: Read>(read: R) -> Result<Self, Error> {
         // Set up the parser
         let mut parser = EventReader::new(read);
         let mut fbx = RawFbx {
@@ -55,11 +55,11 @@ impl RawFbx {
         // Go over all events
         loop {
             // Check what event we got
-            match parser.next().map_err(|e| FbxError::FbxDirect(e))? {
+            match parser.next().map_err(|e| Error::FbxDirect(e))? {
                 // If we get to the start of a node
                 FbxEvent::StartNode { name, properties } => {
-                    let new_node = FbxNode::parse(name, properties, &mut parser)
-                        .map_err(|e| FbxError::FbxDirect(e))?;
+                    let new_node = RawNode::parse(name, properties, &mut parser)
+                        .map_err(|e| Error::FbxDirect(e))?;
                     fbx.nodes.push(new_node);
                 },
                 // If we hit the end of the file, we're done
