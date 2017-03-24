@@ -6,7 +6,7 @@ mod properties;
 pub use self::geometry::{Geometry};
 pub use self::model::{Model};
 pub use self::object::{Object, ObjectType};
-pub use self::properties::Properties;
+pub use self::properties::Property;
 
 use std::collections::HashMap;
 use {RawFbx};

@@ -5,6 +5,7 @@ pub mod simple;
 mod tree;
 
 pub use fbx_direct::reader::Error as FbxDirectError;
+pub use fbx_direct::common::OwnedProperty;
 
 pub use self::raw::{RawFbx, RawNode};
 pub use self::tree::{ObjectTreeNode};
