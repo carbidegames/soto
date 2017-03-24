@@ -65,7 +65,7 @@ fn process_fbx_node(
             }
         },
         ObjectType::Model(ref model) => {
-            task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&model.name)));
+            task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&fbx_node.object.name)));
 
             // Create a new transformation matrix
             let rot_pivot: Vector3<_> = model.rotation_pivot.into();
@@ -84,9 +84,15 @@ fn process_fbx_node(
                 Matrix4::from_nonuniform_scale(model.scale[0], model.scale[1], model.scale[2]);
 
             // Create a new bone and set the transformations
-            let new_bone = smd.new_bone(&id_name(&model.name).unwrap(), current_bone.map(|b| b.id))
-                .ok_or_else(|| Error::Task(format!("Bone \"{}\" exists multiple times in the FBX", &model.name)))?
-                .clone(); // Clone needed to avoid a borrow since we need to mut borrow later
+            let new_bone = smd.new_bone(
+                &id_name(&fbx_node.object.name).unwrap(),
+                current_bone.map(|b| b.id)
+            )
+                .ok_or_else(|| Error::Task(format!(
+                    "Bone \"{}\" exists multiple times in the FBX",
+                    &fbx_node.object.name
+                )))?
+                .clone(); // Clone needed to avoid a borrow since we need to mut borrow SMD later
             let first_frame = SmdAnimationFrameBone {
                 // This needs to be derived from the matrix to get the right location
                 translation: (

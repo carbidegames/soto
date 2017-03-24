@@ -2,8 +2,6 @@ use {RawNode};
 
 #[derive(Debug, Default, Clone)]
 pub struct Geometry {
-    pub id: i64,
-    pub name: String,
     /// Vertices that make up the polygon.
     pub vertices: Vec<[f32; 3]>,
     /// Vertex indices that make up the polygons.
@@ -23,11 +21,7 @@ impl Geometry {
         let class = node.properties[2].get_string().unwrap();
         if class != "Mesh" {
             // It's not a mesh, just return an empty geometry
-            return Geometry {
-                id: node.properties[0].get_i64().unwrap(),
-                name: node.properties[1].get_string().unwrap().clone(),
-                .. Default::default()
-            }
+            return Default::default();
         }
 
         // Read in the vertex data, which is just stored in the sub-node "Vertices"
@@ -86,8 +80,6 @@ impl Geometry {
 
         // Finish off the geometry type
         Geometry {
-            id: node.properties[0].get_i64().unwrap(),
-            name: node.properties[1].get_string().unwrap().clone(),
             vertices: vertices,
             polygons: polygons,
             normals: normals,

@@ -15,7 +15,7 @@ impl FbxObjectTreeNode {
         let mut nodes = Vec::new();
 
         // Add all children as well
-        for child in fbx.children_of(obj.id()) {
+        for child in fbx.children_of(obj.id) {
             nodes.push(Self::from_object(fbx, child.clone()));
         }
 

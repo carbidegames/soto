@@ -57,25 +57,10 @@ fn get_objects(fbx: &RawFbx) -> HashMap<i64, Object> {
     let objects = fbx.nodes.iter().find(|n| n.name == "Objects").unwrap();
     let mut objs_map = HashMap::new();
 
-    // Go through all the nodes in there
+    // Go through all the nodes in there and add them
     for node in &objects.children {
-        // Send this node over to the appropriate converter
-        match node.name.as_str() {
-            "Geometry" => {
-                let geom = Geometry::from_node(node);
-                objs_map.insert(geom.id, Object { class: ObjectType::Geometry(geom) });
-            }
-            "Model" => {
-                let model = Model::from_node(node);
-                objs_map.insert(model.id, Object { class: ObjectType::Model(model) });
-            },
-            _ => {
-                objs_map.insert(
-                    node.properties[0].get_i64().unwrap(),
-                    Object { class: ObjectType::NotSupported(node.name.clone()) }
-                );
-            },
-        }
+        let obj = Object::from_node(&node);
+        objs_map.insert(obj.id, obj);
     }
 
     objs_map

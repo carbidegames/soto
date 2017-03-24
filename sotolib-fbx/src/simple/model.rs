@@ -4,8 +4,6 @@ use {RawNode};
 
 #[derive(Debug, Clone)]
 pub struct Model {
-    pub id: i64,
-    pub name: String,
     pub translation: [f32; 3],
     pub rotation: [f32; 3],
     pub scale: [f32; 3],
@@ -55,8 +53,6 @@ impl Model {
 
         // Retrieve model parameter information
         let model = Model {
-            id: node.properties[0].get_i64().unwrap(),
-            name: node.properties[1].get_string().unwrap().clone(),
             translation: translation,
             rotation: rotation,
             scale: scale,
