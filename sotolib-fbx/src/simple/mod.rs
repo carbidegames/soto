@@ -1,12 +1,17 @@
-pub mod object;
+mod geometry;
+mod model;
+mod object;
+
+pub use self::geometry::{Geometry};
+pub use self::model::{Model};
+pub use self::object::{Object, ObjectType};
 
 use std::collections::HashMap;
 use {RawFbx};
-use self::object::{Object, ObjectType, Geometry, Model};
 
 /// Represents a connection within the FBX file. Connections are laid out (Child, Parent).
 #[derive(Debug)]
-pub enum FbxConnection {
+pub enum Connection {
     /// Object ID to Object ID connections.
     ObjectObject(i64, i64),
     /// Object ID to Object ID + PropertyKey connections.
@@ -18,7 +23,7 @@ pub enum FbxConnection {
 #[derive(Debug)]
 pub struct SimpleFbx {
     pub objects: HashMap<i64, Object>,
-    pub connections: Vec<FbxConnection>,
+    pub connections: Vec<Connection>,
 }
 
 impl SimpleFbx {
@@ -35,7 +40,7 @@ impl SimpleFbx {
 
         // Go through all connections
         for connection in &self.connections {
-            if let &FbxConnection::ObjectObject(child, parent) = connection {
+            if let &Connection::ObjectObject(child, parent) = connection {
                 if parent == id {
                     // We've found one, look it up and add it
                     objs.push(&self.objects[&child])
@@ -76,7 +81,7 @@ fn get_objects(fbx: &RawFbx) -> HashMap<i64, Object> {
     objs_map
 }
 
-fn get_connections(fbx: &RawFbx) -> Vec<FbxConnection> {
+fn get_connections(fbx: &RawFbx) -> Vec<Connection> {
     // Get the node for connections itself
     let connections = fbx.nodes.iter().find(|n| n.name == "Connections").unwrap();
     let mut con_vec = Vec::new();
@@ -84,16 +89,16 @@ fn get_connections(fbx: &RawFbx) -> Vec<FbxConnection> {
     // Go through all the nodes in there
     for node in &connections.children {
         let con = match node.properties[0].get_string().unwrap().as_str() {
-            "OO" => FbxConnection::ObjectObject(
+            "OO" => Connection::ObjectObject(
                 node.properties[1].get_i64().unwrap(),
                 node.properties[2].get_i64().unwrap(),
             ),
-            "OP" => FbxConnection::ObjectProperty(
+            "OP" => Connection::ObjectProperty(
                 node.properties[1].get_i64().unwrap(),
                 node.properties[2].get_i64().unwrap(),
                 node.properties[3].get_string().unwrap().clone(),
             ),
-            other => FbxConnection::NotSupported(other.to_string())
+            other => Connection::NotSupported(other.to_string())
         };
         con_vec.push(con);
     }

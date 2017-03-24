@@ -7,8 +7,7 @@ mod tree;
 pub use fbx_direct::reader::Error as FbxDirectError;
 
 pub use self::raw::{RawFbx, RawNode};
-pub use self::simple::object::{Object, ObjectType, Model, Geometry};
-pub use self::simple::{SimpleFbx, FbxConnection};
+pub use self::simple::{SimpleFbx, Connection, Object, ObjectType, Model, Geometry};
 pub use self::tree::{FbxObjectTreeNode};
 
 use std::fmt::{self, Display, Formatter};
