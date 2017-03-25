@@ -12,7 +12,7 @@ use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdExportExt, SmdAnimationFrameBo
 pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
-    let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap());
+    let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
     let fbx_tree = ObjectTreeNode::from_simple(&fbx);
 
     // Go over all FBX root nodes and turn them into SMD data

@@ -1,5 +1,5 @@
 use simple::{Geometry, Model, Property, Properties};
-use {RawNode};
+use {RawNode, Error};
 
 #[derive(Debug, Clone)]
 pub struct Object {
@@ -20,20 +20,22 @@ impl Object {
         }
     }
 
-    pub fn from_node(node: &RawNode) -> Self {
+    pub fn from_node(node: &RawNode) -> Result<Self, Error> {
         // Generic data
         let id = node.properties[0].get_i64().unwrap();
         let name = node.properties[1].get_string().unwrap().clone();
 
         // Properties, of which there may be none
-        let properties: Properties = node.find_child("Properties70")
-            .map(|p|
-                p.children.iter()
-                    .map(|c| Property::from_node(c))
-                    .map(|p| (p.name.clone(), p))
-                    .collect()
-            )
-            .unwrap_or_else(|| Properties::new());
+        let properties = if let Some(props_node) = node.find_child("Properties70") {
+            let p: Result<Vec<_>, _> = props_node.children.iter()
+                .map(|c| Property::from_node(c))
+                .collect();
+            p?.into_iter()
+                .map(|p| (p.name.clone(), p))
+                .collect()
+        } else {
+            Properties::new()
+        };
 
         // Specific object type
         let class = match node.name.as_str() {
@@ -48,12 +50,12 @@ impl Object {
             },
         };
 
-        Object {
+        Ok(Object {
             id: id,
             class: class,
             properties: properties,
             name: name,
-        }
+        })
     }
 }
 
@@ -85,7 +87,7 @@ mod tests {
                 OwnedProperty::String(expected_name.into())
             ),
             children: Vec::new(),
-        });
+        }).unwrap();
 
         assert!(obj.id == expected_id);
         assert!(obj.name == expected_name);

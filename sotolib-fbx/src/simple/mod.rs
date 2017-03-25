@@ -9,7 +9,7 @@ pub use self::object::{Object, ObjectType};
 pub use self::properties::{Property, Properties};
 
 use std::collections::{HashMap};
-use {RawFbx};
+use {RawFbx, Error};
 
 /// Represents a connection within the FBX file. Connections are laid out (Child, Parent).
 #[derive(Debug)]
@@ -29,11 +29,11 @@ pub struct SimpleFbx {
 }
 
 impl SimpleFbx {
-    pub fn from_raw(fbx: &RawFbx) -> Self {
-        SimpleFbx {
-            objects: get_objects(fbx),
+    pub fn from_raw(fbx: &RawFbx) -> Result<Self, Error> {
+        Ok(SimpleFbx {
+            objects: get_objects(fbx)?,
             connections: get_connections(fbx),
-        }
+        })
     }
 
     /// Gets all objects that are linked as children of another object by the parent's id.
@@ -54,18 +54,18 @@ impl SimpleFbx {
     }
 }
 
-fn get_objects(fbx: &RawFbx) -> HashMap<i64, Object> {
+fn get_objects(fbx: &RawFbx) -> Result<HashMap<i64, Object>, Error> {
     // Get the node for objects itself
     let objects = fbx.nodes.iter().find(|n| n.name == "Objects").unwrap();
     let mut objs_map = HashMap::new();
 
     // Go through all the nodes in there and add them
     for node in &objects.children {
-        let obj = Object::from_node(&node);
+        let obj = Object::from_node(&node)?;
         objs_map.insert(obj.id, obj);
     }
 
-    objs_map
+    Ok(objs_map)
 }
 
 fn get_connections(fbx: &RawFbx) -> Vec<Connection> {

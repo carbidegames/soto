@@ -14,20 +14,28 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub enum Error {
-    FbxDirect(FbxDirectError)
+    FbxDirect(FbxDirectError),
+    WrongNode(String, String), // Expected, Actual
+    WrongNodeLayout(String),
 }
 
 impl ::std::error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::FbxDirect(_) => "fbx_direct Parsing Error",
+            Error::WrongNode(_, _) => "Wrong Node",
+            Error::WrongNodeLayout(_) => "Wrong Node Layout",
         }
     }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match *self {
+            Error::WrongNode(ref expected, ref actual) =>
+                write!(f, "Found {} instead of expected {}", actual, expected),
+            _ => write!(f, "{:?}", self),
+        }
     }
 }
 
