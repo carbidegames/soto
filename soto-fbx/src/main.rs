@@ -9,7 +9,6 @@ mod smd;
 mod task;
 
 use std::fs::File;
-use std::path::PathBuf;
 
 use soto::task::{task_wrapper, TaskParameters};
 use soto::Error;

@@ -29,11 +29,11 @@ pub fn create_animation_smd(_ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error>
     let mut fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
 
     // Read in the animation data itself
-    let animation = Animation::from_simple(&fbx);
+    let animation = Animation::from_simple(&fbx).unwrap();
 
     // Finally, turn the animation data into bone positions in the SMD
     let smd = Smd::new();
-    for frame in 0..animation.amount_of_frames() {
+    for frame in 0..animation.frame_count(&fbx) {
         // First transform the FBX for this frame
         animation.transform_fbx_to_frame(&mut fbx, frame);
 
@@ -147,7 +147,7 @@ fn process_fbx_node(
                 process_fbx_node(node, &matrix, pivot, smd, Some(&new_bone))?;
             }
         },
-        ObjectType::Root | ObjectType::NotSupported(_) => {
+        _ => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
                 process_fbx_node(node, matrix, pivot, smd, current_bone)?;
