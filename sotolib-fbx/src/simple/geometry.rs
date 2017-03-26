@@ -1,6 +1,6 @@
 use {RawNode};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct Geometry {
     /// Vertices that make up the polygon.
     pub vertices: Vec<[f32; 3]>,

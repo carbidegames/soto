@@ -1,7 +1,7 @@
 use simple::{Properties};
 use {RawNode};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct Model {
 }
 

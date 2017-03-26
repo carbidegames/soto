@@ -1,4 +1,4 @@
-use simple::{Geometry, Model, Property, Properties};
+use simple::{Geometry, Model, Property, Properties, AnimationCurve};
 use {RawNode, Error};
 
 #[derive(Debug, Clone)]
@@ -61,12 +61,31 @@ impl Object {
 
 #[derive(Debug, Clone)]
 pub enum ObjectType {
+    AnimationStack,
+    AnimationLayer,
+    AnimationCurveNode,
+    AnimationCurve(AnimationCurve),
     Geometry(Geometry),
     Model(Model),
     /// Virtual object representing the root of the file.
     Root,
     /// Currently unsupported object type.
     NotSupported(String)
+}
+
+impl ObjectType {
+    pub fn type_name(&self) -> String {
+        match *self {
+            ObjectType::AnimationStack => "AnimationStack",
+            ObjectType::AnimationLayer => "AnimationLayer",
+            ObjectType::AnimationCurveNode => "AnimationCurveNode",
+            ObjectType::AnimationCurve(_) => "AnimationCurve",
+            ObjectType::Geometry(_) => "Geometry",
+            ObjectType::Model(_) => "Model",
+            ObjectType::Root => "Root", // This really should never be used but here we go
+            ObjectType::NotSupported(ref t) => &t,
+        }.into()
+    }
 }
 
 #[cfg(test)]

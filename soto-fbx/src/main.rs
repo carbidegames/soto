@@ -8,10 +8,12 @@ mod qc;
 mod smd;
 mod task;
 
+use std::fs::File;
 use std::path::PathBuf;
 
 use soto::task::{task_wrapper, TaskParameters};
 use soto::Error;
+use sotolib_smd::{SmdExportExt};
 
 use task::SotoFbxTask;
 
@@ -24,10 +26,28 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     // First, read in the toml we got told to read
     let toml: SotoFbxTask = soto::read_toml(&params.target_toml)?;
 
-    // Generate the needed SMDs
-    let mut reference_smd = params.working_dir.clone();
-    reference_smd.push("reference.smd");
-    smd::create_reference_smd(&PathBuf::from(&toml.model.reference), &reference_smd)?;
+    // Generate the reference SDM
+    let reference_smd = smd::create_reference_smd(&toml.model.reference)?;
+
+    // Export the reference SMD
+    let mut reference_smd_file = params.working_dir.clone();
+    reference_smd_file.push("reference.smd");
+    let export_file = File::create(reference_smd_file)?;
+    reference_smd.export(export_file).unwrap();
+
+    // Generate the animation SDMs
+    for sequence in &toml.sequences {
+        // Generate the SMD
+        let animation_smd = smd::create_animation_smd(
+            &reference_smd, &sequence.1.file
+        )?;
+
+        // Export the SMD
+        let mut animation_smd_file = params.working_dir.clone();
+        animation_smd_file.push(format!("animation_{}.smd", sequence.0));
+        let export_file = File::create(animation_smd_file)?;
+        animation_smd.export(export_file).unwrap();
+    }
 
     // Generate the QC
     let mut target_qc = params.working_dir.clone();

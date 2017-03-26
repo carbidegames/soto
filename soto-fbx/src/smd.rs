@@ -6,10 +6,11 @@ use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
+use sotolib_fbx::animation::{Animation};
 use sotolib_fbx::simple::{SimpleFbx, ObjectType, ModelProperties};
-use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdExportExt, SmdAnimationFrameBone, SmdBone};
+use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdAnimationFrameBone, SmdBone};
 
-pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), Error> {
+pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
     let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
@@ -19,11 +20,34 @@ pub fn create_reference_smd(fbx: &PathBuf, target_smd: &PathBuf) -> Result<(), E
     let mut smd = Smd::new();
     process_fbx_node(&fbx_tree, &Matrix4::identity(), Vector3::new(0.0, 0.0, 0.0), &mut smd, None)?;
 
-    // Export the SMD
-    let export_file = File::create(target_smd)?;
-    smd.export(export_file).unwrap();
+    Ok(smd)
+}
 
-    Ok(())
+pub fn create_animation_smd(_ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> {
+    // Read in the fbx we got told to convert
+    let file = BufReader::new(File::open(&fbx).unwrap());
+    let mut fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
+
+    // Read in the animation data itself
+    let animation = Animation::from_simple(&fbx);
+
+    // Finally, turn the animation data into bone positions in the SMD
+    let smd = Smd::new();
+    for frame in 0..animation.amount_of_frames() {
+        // First transform the FBX for this frame
+        animation.transform_fbx_to_frame(&mut fbx, frame);
+
+        // Now go over all models
+        /*for model in fbx.models() {
+            // For this model, look up the matching BoneId in the reference SMD
+            if let Some(bone) = ref_smd.id_of_bone(&id_name(&model.name)) {
+                // Now add an entry in the animation SMD for that bone at this frame
+                // TODO
+            }
+        }*/
+    }
+
+    Ok(smd)
 }
 
 fn process_fbx_node(

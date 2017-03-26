@@ -1,7 +1,8 @@
 extern crate fbx_direct;
 
-mod raw;
+pub mod animation;
 pub mod simple;
+mod raw;
 mod tree;
 
 pub use fbx_direct::reader::Error as FbxDirectError;

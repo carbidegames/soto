@@ -9,6 +9,6 @@ surface_prop = "default" # TODO: Add implementation
 [model]
 reference = "test_cubes.fbx" # TODO: Add filters
 
-[sequence.move] # TODO: Add implementation
-file = "test_cube_move.fbx"
+[sequences.move]
+file = "test_cubes_move.fbx"
 params = "loop fps 30"
