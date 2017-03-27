@@ -18,7 +18,11 @@ pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
 
     // Go over all FBX root nodes and turn them into SMD data
     let mut smd = Smd::new();
-    process_fbx_node(&fbx_tree, &mut smd, &Matrix4::identity(), Vector3::new(0.0, 0.0, 0.0), None)?;
+    process_fbx_node(
+        &fbx_tree, &mut smd,
+        &Matrix4::identity(), Vector3::new(0.0, 0.0, 0.0), &Matrix4::identity(),
+        None
+    )?;
 
     Ok(smd)
 }
@@ -52,7 +56,7 @@ pub fn create_animation_smd(_ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error>
 
 fn process_fbx_node(
     fbx_node: &ObjectTreeNode, mut smd: &mut Smd,
-    matrix: &Matrix4<f32>, pivot: Vector3<f32>,
+    matrix: &Matrix4<f32>, pivot: Vector3<f32>, parent_scale_inverse: &Matrix4<f32>,
     current_bone: Option<&SmdBone>,
 ) -> Result<(), Error> {
     // Perform node type specific information
@@ -60,11 +64,11 @@ fn process_fbx_node(
         ObjectType::Geometry(ref geometry) =>
             process_geometry(smd, geometry, matrix, current_bone.unwrap()),
         ObjectType::Model(ref _model) =>
-            process_model(fbx_node, smd, matrix, pivot, current_bone)?,
+            process_model(fbx_node, smd, matrix, pivot, parent_scale_inverse, current_bone)?,
         _ => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
-                process_fbx_node(node, smd, matrix, pivot, current_bone)?;
+                process_fbx_node(node, smd, matrix, pivot, parent_scale_inverse, current_bone)?;
             }
         }
     }
@@ -108,14 +112,14 @@ fn process_geometry(smd: &mut Smd, geometry: &Geometry, matrix: &Matrix4<f32>, c
 
 fn process_model(
     fbx_node: &ObjectTreeNode, smd: &mut Smd,
-    matrix: &Matrix4<f32>, pivot: Vector3<f32>,
+    matrix: &Matrix4<f32>, pivot: Vector3<f32>, parent_scale_inverse: &Matrix4<f32>,
     current_bone: Option<&SmdBone>
 ) -> Result<(), Error> {
     task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&fbx_node.object.name)));
     let properties = ModelProperties::from_generic(&fbx_node.object.properties);
 
     // Create a new transformation matrix
-    let (vertices_matrix, rot_pivot) = local_matrices(&properties);
+    let (vertices_matrix, rot_pivot, scale_inverse) = local_matrices(&properties, parent_scale_inverse);
 
     // Create a new bone and set the transformations
     let new_bone = smd.new_bone(
@@ -146,35 +150,58 @@ fn process_model(
     // Make new matrices for children
     let matrix = matrix * vertices_matrix;
     let pivot = rot_pivot;
+    let parent_scale_inverse = scale_inverse;
 
     // Make sure the child nodes will receive this new bone
     for node in &fbx_node.nodes {
-        process_fbx_node(node, smd, &matrix, pivot, Some(&new_bone))?;
+        process_fbx_node(node, smd, &matrix, pivot, &parent_scale_inverse, Some(&new_bone))?;
     }
 
     Ok(())
 }
 
-/// Returns (vertices_matrix, rot_pivot)
-fn local_matrices(properties: &ModelProperties) -> (Matrix4<f32>, Vector3<f32>) {
+/// Returns (vertices_matrix, rot_pivot, scale_inverse)
+fn local_matrices(
+    properties: &ModelProperties, parent_scale_inverse: &Matrix4<f32>
+) -> (Matrix4<f32>, Vector3<f32>, Matrix4<f32>) {
+    let rotation_offset = properties.rotation_offset.into();
+    let rotation_offset_mat = Matrix4::from_translation(rotation_offset);
     let rot_pivot: Vector3<_> = properties.rotation_pivot.into();
     let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
 
-    let rotation =
-        Matrix4::from_angle_z(Deg(properties.rotation[2])) *
-        Matrix4::from_angle_y(Deg(properties.rotation[1])) *
-        Matrix4::from_angle_x(Deg(properties.rotation[0]));
+    let pre_rotation = euler_rotation_to_matrix(properties.pre_rotation);
+    let rotation = euler_rotation_to_matrix(properties.rotation);
+    let post_rotation = euler_rotation_to_matrix(properties.post_rotation);
+
+    let scale = Matrix4::from_nonuniform_scale(
+        properties.scale[0],
+        properties.scale[1],
+        properties.scale[2]
+    );
 
     let local_matrix_for_vertices =
         Matrix4::from_translation(properties.translation.into()) *
-        rot_pivot_mat *
-        rotation *
-        rot_pivot_mat.invert().unwrap() *
-        Matrix4::from_nonuniform_scale(
-            properties.scale[0],
-            properties.scale[1],
-            properties.scale[2]
-        );
+        parent_scale_inverse * // I'm not 100% on this, try removing if scale messes up
 
-    (local_matrix_for_vertices, rot_pivot)
+        // Rotation
+        rotation_offset_mat *
+        rot_pivot_mat *
+        pre_rotation *
+        rotation *
+        post_rotation *
+        rot_pivot_mat.invert().unwrap() *
+
+        // Scale
+        //scale_offset *
+        //scale_pivot *
+        scale; // *
+        //scale_pivot.invert().unwrap();
+
+    (local_matrix_for_vertices, rot_pivot, scale.invert().unwrap())
+}
+
+fn euler_rotation_to_matrix(rot_degs: [f32; 3]) -> Matrix4<f32> {
+    Matrix4::from_angle_z(Deg(rot_degs[2])) *
+    Matrix4::from_angle_y(Deg(rot_degs[1])) *
+    Matrix4::from_angle_x(Deg(rot_degs[0]))
 }
