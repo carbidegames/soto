@@ -39,8 +39,13 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
     let frame_count = animation.frame_count(&fbx);
     task_log(format!("Animation has {} frames", frame_count));
 
-    // Finally, turn the animation data into bone positions in the SMD
+    // Copy over every bone to the new animation SMD
     let mut smd = Smd::new();
+    for bone in &ref_smd.bones {
+        smd.bones.push(bone.clone());
+    }
+
+    // Finally, turn the animation data into bone positions in the SMD
     for frame in 0..frame_count {
         // First transform the FBX for this frame
         animation.transform_fbx_to_frame(&mut fbx, frame);
@@ -58,9 +63,6 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
                     translation: translation.into(),
                     rotation: rotation.into(),
                 });
-
-                // We also need to add this bone to the animation SMD
-                smd.bones.push(ref_smd.bones.iter().find(|b| b.id == bone_id).unwrap().clone());
             }
         }
     }

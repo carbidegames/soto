@@ -72,8 +72,8 @@ impl Animation {
             for driven_prop in fbx.driving_properties_of(node) {
                 // Get this node's values
                 let values: Vec<_> = fbx.objects[&node].properties.iter()
-                    .map(|(_key, value)| value.values[0].clone())
-                    .enumerate().collect();
+                    .map(|(_key, value)| (value.name.clone(), value.values[0].clone()))
+                    .collect();
 
                 // Get the property we need to change
                 // If it doesn't exist, create it as a Vector3
@@ -90,7 +90,14 @@ impl Animation {
                     });
 
                 // Apply the node's values to it
-                for (i, val) in values {
+                for (name, val) in values {
+                    // Find the index for name, we're gonna assume X=0, Y=1, Z=2, others=0
+                    let i = match name.as_str() {
+                        "d|X" => 0,
+                        "d|Y" => 1,
+                        "d|Z" => 2,
+                        _ => 0,
+                    };
                     affected_prop.values[i] = val;
                 }
             }
