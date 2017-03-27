@@ -35,9 +35,13 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
     // Read in the animation data itself
     let animation = Animation::from_simple(&fbx).unwrap();
 
+    // Count and log frames
+    let frame_count = animation.frame_count(&fbx);
+    task_log(format!("Animation has {} frames", frame_count));
+
     // Finally, turn the animation data into bone positions in the SMD
     let mut smd = Smd::new();
-    for frame in 0..animation.frame_count(&fbx) {
+    for frame in 0..frame_count {
         // First transform the FBX for this frame
         animation.transform_fbx_to_frame(&mut fbx, frame);
 

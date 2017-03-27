@@ -1,4 +1,5 @@
-use simple::{SimpleFbx, ObjectId, ObjectType};
+use OwnedProperty;
+use simple::{SimpleFbx, ObjectId, ObjectType, Property};
 
 pub struct Animation {
     curve_nodes: Vec<ObjectId>,
@@ -64,7 +65,7 @@ impl Animation {
                     .properties.get_mut(&prop.name).unwrap();
 
                 // Apply the change
-                affected_prop.values[0] = frame_value;
+                affected_prop.values[0] = OwnedProperty::F32(frame_value);
             }
 
             // Find the properties this node is affecting
@@ -75,8 +76,18 @@ impl Animation {
                     .enumerate().collect();
 
                 // Get the property we need to change
+                // If it doesn't exist, create it as a Vector3
+                // TODO: Use the document definition to create the correct type and default values
                 let affected_prop = fbx.objects.get_mut(&driven_prop.driven).unwrap()
-                    .properties.get_mut(&driven_prop.name).unwrap();
+                    .properties.entry(driven_prop.name.clone())
+                    .or_insert_with(move || Property {
+                        name: driven_prop.name,
+                        values: vec!(
+                            OwnedProperty::F32(0.0),
+                            OwnedProperty::F32(0.0),
+                            OwnedProperty::F32(0.0),
+                        ),
+                    });
 
                 // Apply the node's values to it
                 for (i, val) in values {
@@ -126,7 +137,7 @@ mod tests {
         anim.transform_fbx_to_frame(&mut fbx, 1);
 
         let model = fbx.objects.iter().find(|&(_, o)| o.class.type_name() == "FooBar").unwrap();
-        assert!(model.1.properties["Blah"].values[0].get_i32().unwrap() == 2);
+        assert!(model.1.properties["Blah"].values[0].get_f32().unwrap() == 2.0);
     }
 
     fn init_fbx_with_node() -> SimpleFbx {
@@ -137,7 +148,7 @@ mod tests {
             let foobar = fbx.objects.get_mut(&foobar_id).unwrap();
             foobar.properties.insert("Blah".into(), Property {
                 name: "Blah".into(),
-                values: vec!(OwnedProperty::I32(0)),
+                values: vec!(OwnedProperty::F32(0.0)),
             });
         }
         fbx.connect_parent_child(0, foobar_id);
@@ -152,7 +163,7 @@ mod tests {
             let node = fbx.objects.get_mut(&node_id).unwrap();
             node.properties.insert("d|Blah".into(), Property {
                 name: "d|Blah".into(),
-                values: vec!(OwnedProperty::I32(0)),
+                values: vec!(OwnedProperty::F32(0.0)),
             });
         }
         fbx.connect_parent_child(layer_id, node_id);
@@ -160,10 +171,7 @@ mod tests {
 
         let curve_id = fbx.new_object(ObjectType::AnimationCurve(AnimationCurve {
             frames: 2,
-            values: vec!(
-                OwnedProperty::I32(1),
-                OwnedProperty::I32(2),
-            )
+            values: vec!(1.0, 2.0),
         }));
         fbx.connect_property_object(node_id, "d|Blah", curve_id);
 

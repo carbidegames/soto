@@ -2,7 +2,7 @@ mod export;
 
 pub use export::SmdExportExt;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap};
 
 pub type BoneId = i32;
 
@@ -39,13 +39,13 @@ pub struct SmdAnimationFrameBone {
 
 #[derive(Default)]
 pub struct SmdAnimationFrame {
-    pub bones: HashMap<BoneId, SmdAnimationFrameBone>
+    pub bones: BTreeMap<BoneId, SmdAnimationFrameBone>
 }
 
 #[derive(Default)]
 pub struct Smd {
     pub bones: Vec<SmdBone>,
-    pub animation_frames: HashMap<i32, SmdAnimationFrame>,
+    pub animation_frames: BTreeMap<i32, SmdAnimationFrame>,
     pub triangles: Vec<SmdTriangle>,
 }
 
@@ -53,7 +53,7 @@ impl Smd {
     pub fn new() -> Self {
         Smd {
             bones: Vec::new(),
-            animation_frames: HashMap::new(),
+            animation_frames: BTreeMap::new(),
             triangles: Vec::new(),
         }
     }
