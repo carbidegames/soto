@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader};
 use std::path::PathBuf;
 
-use cgmath::{Matrix4, Deg, Rad, Vector4, SquareMatrix, Vector3};
+use cgmath::{Matrix4, Deg, Vector4, SquareMatrix, Vector3, Euler, Quaternion};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
@@ -187,14 +187,19 @@ fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3
         Vector4::new(pivot.x, pivot.y, pivot.z, 1.0)
     ).truncate().into();
 
-    // This can just be directly copied over
-    let pre_rotation: Vector3<f32> = properties.pre_rotation.into();
-    let rotation: Vector3<f32> = properties.rotation.into();
-    let total_rotation: Vector3<f32> = pre_rotation + rotation;
+    // We want the rotation, but we've got multiple rotations, so combine them
+    let pre_rotation = Quaternion::from(Euler::new(
+        Deg(properties.pre_rotation[0]), Deg(properties.pre_rotation[1]), Deg(properties.pre_rotation[2])
+    ));
+    let rotation = Quaternion::from(Euler::new(
+        Deg(properties.rotation[0]), Deg(properties.rotation[1]), Deg(properties.rotation[2])
+    ));
+
+    let total_rotation = Euler::from(pre_rotation * rotation);
     let rotation = Vector3::new(
-        Rad::from(Deg(total_rotation.x)).0,
-        Rad::from(Deg(total_rotation.y)).0,
-        Rad::from(Deg(total_rotation.z)).0,
+        total_rotation.x.0,
+        total_rotation.y.0,
+        total_rotation.z.0,
     );
 
     (translation, rotation)
