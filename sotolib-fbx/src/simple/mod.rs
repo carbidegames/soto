@@ -44,23 +44,6 @@ impl SimpleFbx {
         })
     }
 
-    /// Gets all objects that are linked as children of another object by the parent's id.
-    pub fn children_of(&self, id: ObjectId) -> Vec<&Object> {
-        let mut objs = Vec::new();
-
-        // Go through all connections
-        for connection in &self.connections {
-            if let &Connection::ObjectObject(child, parent) = connection {
-                if parent == id {
-                    // We've found one, look it up and add it
-                    objs.push(&self.objects[&child])
-                }
-            }
-        }
-
-        objs
-    }
-
     pub fn new_object(&mut self, class: ObjectType) -> ObjectId {
         // Find an unused id for this object
         let mut id = 1;
@@ -90,6 +73,23 @@ impl SimpleFbx {
             driver,
             driven, property.into(),
         ));
+    }
+
+    /// Gets all objects that are linked as children of another object by the parent's id.
+    pub fn children_of(&self, id: ObjectId) -> Vec<&Object> {
+        let mut objs = Vec::new();
+
+        // Go through all connections
+        for connection in &self.connections {
+            if let &Connection::ObjectObject(child, parent) = connection {
+                if parent == id {
+                    // We've found one, look it up and add it
+                    objs.push(&self.objects[&child])
+                }
+            }
+        }
+
+        objs
     }
 
     pub fn driven_properties_of(&self, driven: ObjectId) -> Vec<DrivenProperty> {

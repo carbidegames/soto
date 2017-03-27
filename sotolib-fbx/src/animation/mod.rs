@@ -46,13 +46,35 @@ impl Animation {
         0
     }
 
-    pub fn transform_fbx_to_frame(&self, _fbx: &mut SimpleFbx, _frame: i32) {
+    pub fn transform_fbx_to_frame(&self, fbx: &mut SimpleFbx, frame: i32) {
+        // Go over all curve nodes of this animation
+        for &node in &self.curve_nodes {
+            // For each curve node, get the actual curves that affect it
+            let props = fbx.driven_properties_of(node);
+            for prop in props {
+                let frame_value = {
+                    // Get the curve itself
+                    let curve = &fbx.objects[&prop.driver].class.as_animation_curve().unwrap();
+
+                    // Now, apply the curve on the node's property
+                    curve.values[frame as usize - 1].clone()
+                };
+
+                // Get the property we need to change
+                let affected_prop = fbx.objects.get_mut(&node).unwrap()
+                    .properties.get_mut(&prop.name).unwrap();
+
+                // Apply the change
+                affected_prop.values[0] = frame_value;
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use simple::{ObjectType, AnimationCurve};
+    use simple::{ObjectType, AnimationCurve, Property};
+    use OwnedProperty;
     use super::*;
 
     #[test]
@@ -87,12 +109,22 @@ mod tests {
 
         anim.transform_fbx_to_frame(&mut fbx, 2);
 
-        let model = fbx.objects.iter().find(|&(_, o)| o.class.type_name() == "Model").unwrap();
+        let model = fbx.objects.iter().find(|&(_, o)| o.class.type_name() == "FooBar").unwrap();
         assert!(model.1.properties["Blah"].values[0].get_i32().unwrap() == 2);
     }
 
     fn init_fbx_with_node() -> SimpleFbx {
         let mut fbx = SimpleFbx::new();
+
+        let foobar_id = fbx.new_object(ObjectType::Other("FooBar".into()));
+        {
+            let foobar = fbx.objects.get_mut(&foobar_id).unwrap();
+            foobar.properties.insert("Blah".into(), Property {
+                name: "Blah".into(),
+                values: vec!(OwnedProperty::I32(0)),
+            });
+        }
+        fbx.connect_parent_child(0, foobar_id);
 
         let stack_id = fbx.new_object(ObjectType::AnimationStack);
 
@@ -100,10 +132,22 @@ mod tests {
         fbx.connect_parent_child(stack_id, layer_id);
 
         let node_id = fbx.new_object(ObjectType::AnimationCurveNode);
+        {
+            let node = fbx.objects.get_mut(&node_id).unwrap();
+            node.properties.insert("d|Blah".into(), Property {
+                name: "d|Blah".into(),
+                values: vec!(OwnedProperty::I32(0)),
+            });
+        }
         fbx.connect_parent_child(layer_id, node_id);
+        fbx.connect_property_object(foobar_id, "Blah", node_id);
 
         let curve_id = fbx.new_object(ObjectType::AnimationCurve(AnimationCurve {
             frames: 2,
+            values: vec!(
+                OwnedProperty::I32(1),
+                OwnedProperty::I32(2),
+            )
         }));
         fbx.connect_property_object(node_id, "d|Blah", curve_id);
 

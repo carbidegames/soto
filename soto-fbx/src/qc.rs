@@ -19,7 +19,9 @@ pub fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Re
     writeln!(file)?;
 
     // Prop information
-    writeln!(file, "$staticprop")?;
+    if toml.prop.dynamic == "static" {
+        writeln!(file, "$staticprop")?;
+    }
     writeln!(file, "$surfaceprop \"default\"")?;
     writeln!(file)?;
 

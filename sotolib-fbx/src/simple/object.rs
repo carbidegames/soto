@@ -58,7 +58,7 @@ impl Object {
                 ObjectType::Model(Model::from_node(node))
             },
             _ => {
-                ObjectType::NotSupported(node.name.clone())
+                ObjectType::Other(node.name.clone())
             },
         };
 
@@ -81,8 +81,8 @@ pub enum ObjectType {
     Model(Model),
     /// Virtual object representing the root of the file.
     Root,
-    /// Currently unsupported object type.
-    NotSupported(String)
+    /// Currently not implemented object type.
+    Other(String)
 }
 
 impl ObjectType {
@@ -95,8 +95,16 @@ impl ObjectType {
             ObjectType::Geometry(_) => "Geometry",
             ObjectType::Model(_) => "Model",
             ObjectType::Root => "Root", // This really should never be used but here we go
-            ObjectType::NotSupported(ref t) => &t,
+            ObjectType::Other(ref t) => &t,
         }.into()
+    }
+
+    pub fn as_animation_curve(&self) -> Option<&AnimationCurve> {
+        if let &ObjectType::AnimationCurve(ref value) = self {
+            Some(value)
+        } else {
+            None
+        }
     }
 }
 

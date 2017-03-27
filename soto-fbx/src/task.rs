@@ -4,6 +4,7 @@ use std::path::PathBuf;
 #[derive(Deserialize)]
 pub struct Prop {
     pub name: String,
+    pub dynamic: String,
 }
 
 #[derive(Deserialize)]

@@ -3,7 +3,7 @@ runner = "soto-fbx"
 
 [prop]
 name = "layl_debug/test_cubes" # TODO: Make use of prefix and relative path
-type = "static" # TODO: Add implementation
+dynamic = "dynamic"
 surface_prop = "default" # TODO: Add implementation
 
 [model]
