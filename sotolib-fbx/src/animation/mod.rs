@@ -73,19 +73,40 @@ mod tests {
 
     #[test]
     fn it_gives_frames_for_stack_layer_node_and_curve() {
+        let fbx = init_fbx_with_node();
+
+        let anim = Animation::from_simple(&fbx).unwrap();
+
+        assert!(anim.frame_count(&fbx) == 2);
+    }
+
+    #[test]
+    fn it_transforms_property() {
+        let mut fbx = init_fbx_with_node();
+        let anim = Animation::from_simple(&fbx).unwrap();
+
+        anim.transform_fbx_to_frame(&mut fbx, 2);
+
+        let model = fbx.objects.iter().find(|&(_, o)| o.class.type_name() == "Model").unwrap();
+        assert!(model.1.properties["Blah"].values[0].get_i32().unwrap() == 2);
+    }
+
+    fn init_fbx_with_node() -> SimpleFbx {
         let mut fbx = SimpleFbx::new();
+
         let stack_id = fbx.new_object(ObjectType::AnimationStack);
+
         let layer_id = fbx.new_object(ObjectType::AnimationLayer);
         fbx.connect_parent_child(stack_id, layer_id);
+
         let node_id = fbx.new_object(ObjectType::AnimationCurveNode);
         fbx.connect_parent_child(layer_id, node_id);
+
         let curve_id = fbx.new_object(ObjectType::AnimationCurve(AnimationCurve {
             frames: 2,
         }));
         fbx.connect_property_object(node_id, "d|Blah", curve_id);
 
-        let anim = Animation::from_simple(&fbx).unwrap();
-
-        assert!(anim.frame_count(&fbx) == 2);
+        fbx
     }
 }
