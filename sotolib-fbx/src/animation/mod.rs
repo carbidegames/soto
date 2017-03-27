@@ -37,7 +37,7 @@ impl Animation {
                 if let ObjectType::AnimationCurve(ref curve) = curve_obj.class {
                     return curve.frames
                 } else {
-                    panic!("Non-curve when curve was expected");
+                    panic!("Non-curve when curve was expected, found: {:?}", curve_obj);
                 }
             }
         }

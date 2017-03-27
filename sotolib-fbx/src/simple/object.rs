@@ -39,6 +39,18 @@ impl Object {
 
         // Specific object type
         let class = match node.name.as_str() {
+            "AnimationStack" => {
+                ObjectType::AnimationStack
+            },
+            "AnimationLayer" => {
+                ObjectType::AnimationLayer
+            },
+            "AnimationCurveNode" => {
+                ObjectType::AnimationCurveNode
+            },
+            "AnimationCurve" => {
+                ObjectType::AnimationCurve(AnimationCurve::from_node(node))
+            },
             "Geometry" => {
                 ObjectType::Geometry(Geometry::from_node(node))
             }

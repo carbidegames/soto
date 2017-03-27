@@ -80,7 +80,7 @@ impl Task {
                 // A result means this task is done
                 TaskMessage::Result(res) => {
                     if let Some(error) = res.error {
-                        error!(log, error);
+                        return Err(Error::Task(error))
                     }
                     break;
                 }
