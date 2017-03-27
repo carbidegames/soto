@@ -35,6 +35,9 @@ pub fn generate_qc(path: &PathBuf, toml: &SotoFbxTask, ref_mdl_name: &str) -> Re
 
     // Animation data
     writeln!(file, "$sequence idle \"{}\"", ref_mdl_name)?;
+    for (sequence, data) in &toml.sequences {
+        writeln!(file, "$sequence {} \"animation_{}.smd\" {}", sequence, sequence, data.params)?;
+    }
     writeln!(file)?;
 
     // Physics data

@@ -58,6 +58,9 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
                     translation: translation.into(),
                     rotation: rotation.into(),
                 });
+
+                // We also need to add this bone to the animation SMD
+                smd.bones.push(ref_smd.bones.iter().find(|b| b.id == bone_id).unwrap().clone());
             }
         }
     }
