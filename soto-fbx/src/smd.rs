@@ -56,7 +56,7 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
             if let Some(bone_id) = ref_smd.id_of_bone(&id_name(&model.name).unwrap()) {
                 // Now that we have a model and a bone, we need the current translation and rotation
                 // for the model
-                let (translation, rotation) = calculate_world_transforms_for(&fbx, model);
+                let (translation, rotation) = calculate_animation_transforms_for(&fbx, model);
 
                 // And now that we have those, finally add the bone data to the animation SMD
                 smd.set_animation(frame, bone_id, SmdAnimationFrameBone {
@@ -176,9 +176,12 @@ fn process_model(
 }
 
 /// Returns (Translation, Rotation)
-fn calculate_world_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
-    // First get the world matrix and pivot
-    let (matrix, pivot, parent_pivot) = world_matrices_of(fbx, obj);
+fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
+    let properties = ModelProperties::from_generic(&obj.properties);
+
+    // First get the world matrix and pivot TODO: Clean this up and re-comment
+    let (_matrix, _pivot, parent_pivot) = world_matrices_of(fbx, obj);
+    let (matrix, pivot) = local_matrices(&properties);
 
     // Now transform a 0,0,0 vector to get the actual pivot
     let translation = (
@@ -188,7 +191,6 @@ fn calculate_world_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32
     ).truncate().into();
 
     // This can just be directly copied over
-    let properties = ModelProperties::from_generic(&obj.properties);
     let rotation = Vector3::new(
         Rad::from(Deg(properties.rotation[0])).0,
         Rad::from(Deg(properties.rotation[1])).0,
