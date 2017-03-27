@@ -92,6 +92,20 @@ impl SimpleFbx {
         objs
     }
 
+    pub fn parent_of(&self, id: ObjectId) -> Option<ObjectId> {
+        // Go through all connections
+        for connection in &self.connections {
+            if let &Connection::ObjectObject(child, parent) = connection {
+                if child == id {
+                    // We've found a parent, return it
+                    return Some(parent)
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn driven_properties_of(&self, driven: ObjectId) -> Vec<DrivenProperty> {
         let mut vec = Vec::new();
 

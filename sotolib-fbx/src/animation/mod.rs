@@ -56,7 +56,7 @@ impl Animation {
                     let curve = &fbx.objects[&prop.driver].class.as_animation_curve().unwrap();
 
                     // Now, apply the curve on the node's property
-                    curve.values[frame as usize - 1].clone()
+                    curve.values[frame as usize].clone()
                 };
 
                 // Get the property we need to change
@@ -123,7 +123,7 @@ mod tests {
         let mut fbx = init_fbx_with_node();
         let anim = Animation::from_simple(&fbx).unwrap();
 
-        anim.transform_fbx_to_frame(&mut fbx, 2);
+        anim.transform_fbx_to_frame(&mut fbx, 1);
 
         let model = fbx.objects.iter().find(|&(_, o)| o.class.type_name() == "FooBar").unwrap();
         assert!(model.1.properties["Blah"].values[0].get_i32().unwrap() == 2);

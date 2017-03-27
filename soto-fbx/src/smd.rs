@@ -7,7 +7,7 @@ use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
 use sotolib_fbx::animation::{Animation};
-use sotolib_fbx::simple::{SimpleFbx, ObjectType, ModelProperties, Geometry};
+use sotolib_fbx::simple::{Object, SimpleFbx, ObjectType, ModelProperties, Geometry};
 use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdAnimationFrameBone, SmdBone};
 
 pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
@@ -27,7 +27,7 @@ pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
     Ok(smd)
 }
 
-pub fn create_animation_smd(_ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> {
+pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
     let mut fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
@@ -36,19 +36,26 @@ pub fn create_animation_smd(_ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error>
     let animation = Animation::from_simple(&fbx).unwrap();
 
     // Finally, turn the animation data into bone positions in the SMD
-    let smd = Smd::new();
+    let mut smd = Smd::new();
     for frame in 0..animation.frame_count(&fbx) {
         // First transform the FBX for this frame
         animation.transform_fbx_to_frame(&mut fbx, frame);
 
         // Now go over all models
-        /*for model in fbx.models() {
+        for (_, model) in fbx.objects.iter().filter(|&(_, o)| o.class.type_name() == "Model") {
             // For this model, look up the matching BoneId in the reference SMD
-            if let Some(bone) = ref_smd.id_of_bone(&id_name(&model.name)) {
-                // Now add an entry in the animation SMD for that bone at this frame
-                // TODO
+            if let Some(bone_id) = ref_smd.id_of_bone(&id_name(&model.name).unwrap()) {
+                // Now that we have a model and a bone, we need the current translation and rotation
+                // for the model
+                let (translation, rotation) = calculate_world_transforms_for(&fbx, model);
+
+                // And now that we have those, finally add the bone data to the animation SMD
+                smd.set_animation(frame, bone_id, SmdAnimationFrameBone {
+                    translation: translation.into(),
+                    rotation: rotation.into(),
+                });
             }
-        }*/
+        }
     }
 
     Ok(smd)
@@ -157,6 +164,48 @@ fn process_model(
     }
 
     Ok(())
+}
+
+/// Returns (Translation, Rotation)
+fn calculate_world_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
+    // First get the world matrix and pivot
+    let (matrix, pivot, parent_pivot) = world_matrices_of(fbx, obj);
+
+    // Now transform a 0,0,0 vector to get the actual pivot
+    let translation = (
+        Matrix4::from_translation(-parent_pivot) *
+        matrix *
+        Vector4::new(pivot.x, pivot.y, pivot.z, 1.0)
+    ).truncate().into();
+
+    // This can just be directly copied over
+    let properties = ModelProperties::from_generic(&obj.properties);
+    let rotation = Vector3::new(
+        Rad::from(Deg(properties.rotation[0])).0,
+        Rad::from(Deg(properties.rotation[1])).0,
+        Rad::from(Deg(properties.rotation[2])).0
+    );
+
+    (translation, rotation)
+}
+
+fn world_matrices_of(fbx: &SimpleFbx, obj: &Object) -> (Matrix4<f32>, Vector3<f32>, Vector3<f32>) {
+    // Start with the local matrix
+    let (l_mat, l_piv) = local_matrices(&ModelProperties::from_generic(&obj.properties));
+
+    // Check this obj's parents
+    let parent_id = fbx.parent_of(obj.id).unwrap();
+
+    // If this is a root object, we're done, return the data we got
+    if parent_id == 0 {
+        return (l_mat, l_piv, Vector3::new(0.0, 0.0, 0.0))
+    }
+
+    // If this isn't a root object, we need to get that obj's data first
+    let (p_mat, p_piv, _) = world_matrices_of(fbx, &fbx.objects[&parent_id]);
+
+    // Then return our data transformed
+    (p_mat * l_mat, l_piv, p_piv)
 }
 
 /// Returns (vertices_matrix, rot_pivot)

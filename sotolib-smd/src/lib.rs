@@ -83,6 +83,11 @@ impl Smd {
         Some(&self.bones[self.bones.len()-1])
     }
 
+    pub fn id_of_bone(&self, name: &str) -> Option<BoneId> {
+        // Find the bone in the list and return its ID
+        self.bones.iter().find(|b| b.name == name).map(|b| b.id)
+    }
+
     /// Sets the state of a bone at a specific frame, overwriting anything previously there.
     pub fn set_animation(&mut self, frame: i32, bone_id: BoneId, bone: SmdAnimationFrameBone) {
         let frame = self.animation_frames.entry(frame)

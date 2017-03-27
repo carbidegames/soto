@@ -10,8 +10,8 @@ mod task;
 
 use std::fs::File;
 
-use soto::task::{task_wrapper, TaskParameters};
-use soto::Error;
+use soto::task::{task_wrapper, TaskParameters, task_log};
+use soto::{Error};
 use sotolib_smd::{SmdExportExt};
 
 use task::SotoFbxTask;
@@ -36,6 +36,8 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
 
     // Generate the animation SDMs
     for sequence in &toml.sequences {
+        task_log(format!("Generating animation \"{}\"...", sequence.0));
+
         // Generate the SMD
         let animation_smd = smd::create_animation_smd(
             &reference_smd, &sequence.1.file
