@@ -107,6 +107,30 @@ impl SimpleFbx {
                 vec.push(DrivenProperty {
                     name: property.clone(),
                     driver: driver,
+                    driven: driven,
+                });
+            }
+        }
+
+        vec
+    }
+
+    pub fn driving_properties_of(&self, driver: ObjectId) -> Vec<DrivenProperty> {
+        let mut vec = Vec::new();
+
+        // Go through all connections
+        for connection in &self.connections {
+            // Check if this is a Object-Property connection with the driver
+            if let Connection::ObjectProperty(c_driver, driven, ref property) = *connection {
+                if c_driver != driver {
+                    continue;
+                }
+
+                // We've got one, add it to the list
+                vec.push(DrivenProperty {
+                    name: property.clone(),
+                    driver: driver,
+                    driven: driven,
                 });
             }
         }
@@ -118,6 +142,7 @@ impl SimpleFbx {
 pub struct DrivenProperty {
     pub name: String,
     pub driver: ObjectId,
+    pub driven: ObjectId,
 }
 
 fn get_objects(fbx: &RawFbx) -> Result<HashMap<i64, Object>, Error> {

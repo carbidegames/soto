@@ -49,9 +49,8 @@ impl Animation {
     pub fn transform_fbx_to_frame(&self, fbx: &mut SimpleFbx, frame: i32) {
         // Go over all curve nodes of this animation
         for &node in &self.curve_nodes {
-            // For each curve node, get the actual curves that affect it
-            let props = fbx.driven_properties_of(node);
-            for prop in props {
+            // First, update the node using curves that drive it
+            for prop in fbx.driven_properties_of(node) {
                 let frame_value = {
                     // Get the curve itself
                     let curve = &fbx.objects[&prop.driver].class.as_animation_curve().unwrap();
@@ -66,6 +65,23 @@ impl Animation {
 
                 // Apply the change
                 affected_prop.values[0] = frame_value;
+            }
+
+            // Find the properties this node is affecting
+            for driven_prop in fbx.driving_properties_of(node) {
+                // Get this node's values
+                let values: Vec<_> = fbx.objects[&node].properties.iter()
+                    .map(|(_key, value)| value.values[0].clone())
+                    .enumerate().collect();
+
+                // Get the property we need to change
+                let affected_prop = fbx.objects.get_mut(&driven_prop.driven).unwrap()
+                    .properties.get_mut(&driven_prop.name).unwrap();
+
+                // Apply the node's values to it
+                for (i, val) in values {
+                    affected_prop.values[i] = val;
+                }
             }
         }
     }
