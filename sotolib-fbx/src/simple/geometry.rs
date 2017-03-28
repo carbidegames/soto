@@ -30,9 +30,11 @@ impl Geometry {
 
         // Read in the indices
         let indi_node = node.find_child("PolygonVertexIndex").unwrap();
+        let vertex_indices_raw: Vec<i32> = indi_node.properties[0].clone().into_vec_i32().unwrap();
         let mut polygons = Vec::new();
         let mut cur_polygon = Vec::new();
-        for val in indi_node.properties[0].get_vec_i32().unwrap().iter() {
+        let mut vertex_indices = Vec::new();
+        for val in &vertex_indices_raw {
             let mut val: i32 = *val;
 
             // If this one is negative we need to adjust it and that means this is end of the polygon
@@ -40,6 +42,9 @@ impl Geometry {
                 val = -val-1;
                 true
             } else { false };
+
+            // Now that we have a correct value, keep track of it for later
+            vertex_indices.push(val);
 
             // Add it to the polygon
             cur_polygon.push(val as u32);
@@ -52,31 +57,17 @@ impl Geometry {
         }
         assert!(cur_polygon.len() == 0);
 
-        // Read in the normals (only supports Direct)
-        let norm_node = node.find_child("LayerElementNormal").unwrap();
-        assert!(
-            norm_node.find_child("MappingInformationType").unwrap()
-                .properties[0].get_string().unwrap() == "ByPolygonVertex");
-        assert!(
-            norm_node.find_child("ReferenceInformationType").unwrap()
-                .properties[0].get_string().unwrap() == "Direct");
-        let norm_values_node = norm_node.find_child("Normals").unwrap();
-        let normals = node_to_vector3s(norm_values_node);
+        // Read in the normals
+        let normals_node = node.find_child("LayerElementNormal").unwrap();
+        let normals_data_node = normals_node.find_child("Normals").unwrap();
+        let normals_data = node_to_vector3s(normals_data_node);
+        let normals = flatten_mapping_to_vertices(normals_node, normals_data, "NormalsIndex", &vertex_indices);
 
         // Read in the uvs (only supports IndexToDirect)
         let uvs_node = node.find_child("LayerElementUV").unwrap();
-        assert!(
-            uvs_node.find_child("MappingInformationType").unwrap()
-                .properties[0].get_string().unwrap() == "ByPolygonVertex");
-        assert!(
-            uvs_node.find_child("ReferenceInformationType").unwrap()
-                .properties[0].get_string().unwrap() == "IndexToDirect");
-        let uvs_raw = node_to_vector2s(uvs_node.find_child("UV").unwrap());
-        let uvs_indices = uvs_node.find_child("UVIndex").unwrap().properties[0].get_vec_i32().unwrap();
-        let mut uvs = Vec::new();
-        for index in uvs_indices.iter() {
-            uvs.push(uvs_raw[*index as usize]);
-        }
+        let uvs_data_node = uvs_node.find_child("UV").unwrap();
+        let uvs_data = node_to_vector2s(uvs_data_node);
+        let uvs = flatten_mapping_to_vertices(uvs_node, uvs_data, "UVIndex", &vertex_indices);
 
         // Finish off the geometry type
         Geometry {
@@ -112,6 +103,51 @@ impl Geometry {
         }
 
         triangles
+    }
+}
+
+fn flatten_mapping_to_vertices<T: Copy>(
+    node: &RawNode, data_raw: Vec<T>, indices_field_name: &str, vertex_indices: &Vec<i32>
+) -> Vec<T> {
+    // First flatten the ReferenceInformationType, which can be indices instead of flat values
+    let information = node.find_child("ReferenceInformationType").unwrap()
+        .properties[0].get_string().unwrap();
+    let data_actual = match information.as_str() {
+        // It's already mapped correctly
+        "Direct" => data_raw,
+        // We need to get the UVs and map the data over those
+        "IndexToDirect" => {
+            let uvs_indices = node.find_child(indices_field_name).unwrap()
+                .properties[0].get_vec_i32().unwrap();
+
+            let mut data_actual = Vec::new();
+            for index in uvs_indices.iter() {
+                data_actual.push(data_raw[*index as usize]);
+            }
+            data_actual
+        }
+        // We don't know this type of mapping yet
+        // TODO: Improve error handling
+        other => panic!("Unknown information type {}", other),
+    };
+
+    // Map them according to how we're told to
+    let mapping = node.find_child("MappingInformationType").unwrap()
+        .properties[0].get_string().unwrap();
+    match mapping.as_str() {
+        // It's already mapped correctly
+        "ByPolygonVertex" => data_actual,
+        // This means we need to look at the vertex indices and map our data the same way
+        "ByVertice" => {
+            let mut data = Vec::new();
+            for index in vertex_indices {
+                data.push(data_actual[*index as usize]);
+            }
+            data
+        }
+        // We don't know this type of mapping yet
+        // TODO: Improve error handling
+        other => panic!("Unknown mapping type {}", other),
     }
 }
 
