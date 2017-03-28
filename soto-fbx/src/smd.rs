@@ -57,7 +57,7 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
             if let Some(bone_id) = ref_smd.id_of_bone(&id_name(&model.name).unwrap()) {
                 // Now that we have a model and a bone, we need the current translation and rotation
                 // for the model
-                let (translation, rotation) = calculate_animation_transforms_for(&fbx, model);
+                let (translation, rotation) = calculate_animation_transforms_for(model);
 
                 // And now that we have those, finally add the bone data to the animation SMD
                 smd.set_animation(frame, bone_id, SmdAnimationFrameBone {
@@ -138,7 +138,7 @@ fn process_model(
     let properties = ModelProperties::from_generic(&fbx_node.object.properties);
 
     // Create a new transformation matrix
-    let (local_matrix, _) = local_matrices(&properties);
+    let local_matrix = local_matrices(&properties);
 
     // Create a new bone
     let new_bone = smd.new_bone(
@@ -152,7 +152,7 @@ fn process_model(
         .clone(); // Clone needed to avoid a borrow since we need to mut borrow SMD later
 
     // Set the transformations on this bone
-    let (translation, rotation) = calculate_animation_transforms_for(fbx, &fbx_node.object);
+    let (translation, rotation) = calculate_animation_transforms_for(&fbx_node.object);
     let first_frame = SmdAnimationFrameBone {
         // This needs to be derived from the matrix to get the right location
         translation: translation.into(),
@@ -173,19 +173,14 @@ fn process_model(
 }
 
 /// Returns (Translation, Rotation)
-fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
+fn calculate_animation_transforms_for(obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
     let properties = ModelProperties::from_generic(&obj.properties);
 
-    // First get the matrices and pivots we need
-    let parent_pivot = get_pivot_of_parent(fbx, obj);
-    let (local_matrix, pivot) = local_matrices(&properties);
-
-    // Now transform a 0,0,0 vector to get the actual pivot
-    let translation = (
-        Matrix4::from_translation(-parent_pivot) *
-        local_matrix *
-        Vector4::new(pivot.x, pivot.y, pivot.z, 1.0)
-    ).truncate().into();
+    // Now get the bone's translation
+    let prop_translation: Vector3<_> = properties.translation.into();
+    //let prop_rot_offset: Vector3<_> = properties.rotation_offset.into();
+    //let prop_rot_pivot: Vector3<_> = properties.rotation_pivot.into();
+    let translation = prop_translation;
 
     // We want the rotation, but we've got multiple rotations, so combine them
     let pre_rotation = Quaternion::from(Euler::new(
@@ -194,8 +189,11 @@ fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3
     let rotation = Quaternion::from(Euler::new(
         Deg(properties.rotation[0]), Deg(properties.rotation[1]), Deg(properties.rotation[2])
     ));
+    let post_rotation = Quaternion::from(Euler::new(
+        Deg(properties.post_rotation[0]), Deg(properties.post_rotation[1]), Deg(properties.post_rotation[2])
+    ));
 
-    let total_rotation = Euler::from(pre_rotation * rotation);
+    let total_rotation = Euler::from(post_rotation * rotation * pre_rotation);
     let rotation = Vector3::new(
         total_rotation.x.0,
         total_rotation.y.0,
@@ -205,29 +203,21 @@ fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3
     (translation, rotation)
 }
 
-fn get_pivot_of_parent(fbx: &SimpleFbx, obj: &Object) -> Vector3<f32> {
-    // Check this obj's parents
-    let parent_id = fbx.parent_of(obj.id).unwrap();
-
-    // If this is an object at root, so no parent pivot
-    if parent_id == 0 {
-        return Vector3::new(0.0, 0.0, 0.0)
-    }
-
-    // We've got a parent, get its pivot
-    local_matrices(&ModelProperties::from_generic(&obj.properties)).1
-}
-
-/// Returns (vertices_matrix, pivot)
-fn local_matrices(properties: &ModelProperties) -> (Matrix4<f32>, Vector3<f32>) {
+fn local_matrices(properties: &ModelProperties) -> Matrix4<f32> {
+    // Create various matrices
     let rotation_offset = properties.rotation_offset.into();
     let rotation_offset_mat = Matrix4::from_translation(rotation_offset);
-    let rot_pivot: Vector3<_> = properties.rotation_pivot.into();
-    let rot_pivot_mat = Matrix4::from_translation(rot_pivot);
+    let rotation_pivot: Vector3<_> = properties.rotation_pivot.into();
+    let rotation_pivot_mat = Matrix4::from_translation(rotation_pivot);
 
     let pre_rotation = euler_rotation_to_matrix(properties.pre_rotation);
     let rotation = euler_rotation_to_matrix(properties.rotation);
     let post_rotation = euler_rotation_to_matrix(properties.post_rotation);
+
+    let scale_offset = properties.scale_offset.into();
+    let scale_offset_mat = Matrix4::from_translation(scale_offset);
+    let scale_pivot: Vector3<_> = properties.scale_pivot.into();
+    let scale_pivot_mat = Matrix4::from_translation(scale_pivot);
 
     let scale = Matrix4::from_nonuniform_scale(
         properties.scale[0],
@@ -240,19 +230,19 @@ fn local_matrices(properties: &ModelProperties) -> (Matrix4<f32>, Vector3<f32>) 
 
         // Rotation
         rotation_offset_mat *
-        rot_pivot_mat *
+        rotation_pivot_mat *
         pre_rotation *
         rotation *
         post_rotation *
-        rot_pivot_mat.invert().unwrap() *
+        rotation_pivot_mat.invert().unwrap() *
 
-        // Scale TODO: Complete implementation
-        //scale_offset *
-        //scale_pivot *
-        scale; // *
-        //scale_pivot.invert().unwrap();
+        // Scale
+        scale_offset_mat *
+        scale_pivot_mat *
+        scale *
+        scale_pivot_mat.invert().unwrap();
 
-    (local_matrix_for_vertices, rot_pivot)
+    local_matrix_for_vertices
 }
 
 fn euler_rotation_to_matrix(rot_degs: [f32; 3]) -> Matrix4<f32> {

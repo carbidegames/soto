@@ -21,6 +21,8 @@ pub struct ModelProperties {
     pub scale: [f32; 3],
     pub rotation_offset: [f32; 3],
     pub rotation_pivot: [f32; 3],
+    pub scale_offset: [f32; 3],
+    pub scale_pivot: [f32; 3],
 }
 
 impl ModelProperties {
@@ -60,6 +62,14 @@ impl ModelProperties {
         if let Some(piv) = properties.get("RotationPivot") {
             rotation_pivot = piv.to_vector3();
         }
+        let mut scale_offset: [f32; 3] = Default::default();
+        if let Some(piv) = properties.get("ScalingOffset") {
+            scale_offset = piv.to_vector3();
+        }
+        let mut scale_pivot: [f32; 3] = Default::default();
+        if let Some(piv) = properties.get("ScalingPivot") {
+            scale_pivot = piv.to_vector3();
+        }
 
         ModelProperties {
             translation: translation,
@@ -69,6 +79,8 @@ impl ModelProperties {
             scale: scale,
             rotation_offset: rotation_offset,
             rotation_pivot: rotation_pivot,
+            scale_offset: scale_offset,
+            scale_pivot: scale_pivot,
         }
     }
 }
