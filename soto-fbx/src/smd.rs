@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader};
 use std::path::PathBuf;
 
-use cgmath::{Matrix4, Deg, Vector4, SquareMatrix, Vector3, Euler, Quaternion};
+use cgmath::{Matrix4, Deg, Vector4, SquareMatrix, Vector3, Euler, Quaternion, Rotation};
 use soto::task::{task_log};
 use soto::Error;
 use sotolib_fbx::{RawFbx, id_name, friendly_name, ObjectTreeNode};
@@ -10,7 +10,7 @@ use sotolib_fbx::animation::{Animation};
 use sotolib_fbx::simple::{Object, SimpleFbx, ObjectType, ModelProperties, Geometry};
 use sotolib_smd::{Smd, SmdVertex, SmdTriangle, SmdAnimationFrameBone, SmdBone};
 
-pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
+pub fn create_reference_smd(fbx: &PathBuf, flip_fix_list: &Vec<String>) -> Result<Smd, Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
     let fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
@@ -22,13 +22,16 @@ pub fn create_reference_smd(fbx: &PathBuf) -> Result<Smd, Error> {
         &fbx,
         &fbx_tree, &mut smd,
         &Matrix4::identity(),
-        None
+        None,
+        flip_fix_list
     )?;
 
     Ok(smd)
 }
 
-pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> {
+pub fn create_animation_smd(
+    ref_smd: &Smd, fbx: &PathBuf, flip_fix_list: &Vec<String>,
+) -> Result<Smd, Error> {
     // Read in the fbx we got told to convert
     let file = BufReader::new(File::open(&fbx).unwrap());
     let mut fbx = SimpleFbx::from_raw(&RawFbx::parse(file).unwrap()).unwrap();
@@ -57,7 +60,7 @@ pub fn create_animation_smd(ref_smd: &Smd, fbx: &PathBuf) -> Result<Smd, Error> 
             if let Some(bone_id) = ref_smd.id_of_bone(&id_name(&model.name).unwrap()) {
                 // Now that we have a model and a bone, we need the current translation and rotation
                 // for the model
-                let (translation, rotation) = calculate_animation_transforms_for(&fbx, model);
+                let (translation, rotation) = calculate_animation_transforms_for(&fbx, model, flip_fix_list);
 
                 // And now that we have those, finally add the bone data to the animation SMD
                 smd.set_animation(frame, bone_id, SmdAnimationFrameBone {
@@ -76,17 +79,18 @@ fn process_fbx_node(
     fbx_node: &ObjectTreeNode, mut smd: &mut Smd,
     matrix: &Matrix4<f32>,
     current_bone: Option<&SmdBone>,
+    flip_fix_list: &Vec<String>,
 ) -> Result<(), Error> {
     // Perform node type specific information
     match fbx_node.object.class {
         ObjectType::Geometry(ref geometry) =>
             process_geometry(smd, geometry, matrix, current_bone.unwrap()),
         ObjectType::Model(ref _model) =>
-            process_model(fbx, fbx_node, smd, matrix, current_bone)?,
+            process_model(fbx, fbx_node, smd, matrix, current_bone, flip_fix_list)?,
         _ => {
             // Just go straight to the children
             for node in &fbx_node.nodes {
-                process_fbx_node(fbx, node, smd, matrix, current_bone)?;
+                process_fbx_node(fbx, node, smd, matrix, current_bone, flip_fix_list)?;
             }
         }
     }
@@ -132,7 +136,8 @@ fn process_model(
     fbx: &SimpleFbx,
     fbx_node: &ObjectTreeNode, smd: &mut Smd,
     matrix: &Matrix4<f32>,
-    current_bone: Option<&SmdBone>
+    current_bone: Option<&SmdBone>,
+    flip_fix_list: &Vec<String>,
 ) -> Result<(), Error> {
     task_log(format!("Adding model \"{}\" to SMD data", friendly_name(&fbx_node.object.name)));
     let properties = ModelProperties::from_generic(&fbx_node.object.properties);
@@ -152,7 +157,7 @@ fn process_model(
         .clone(); // Clone needed to avoid a borrow since we need to mut borrow SMD later
 
     // Set the transformations on this bone
-    let (translation, rotation) = calculate_animation_transforms_for(&fbx, &fbx_node.object);
+    let (translation, rotation) = calculate_animation_transforms_for(&fbx, &fbx_node.object, flip_fix_list);
     let first_frame = SmdAnimationFrameBone {
         // This needs to be derived from the matrix to get the right location
         translation: translation.into(),
@@ -166,14 +171,16 @@ fn process_model(
 
     // Make sure the child nodes will receive this new bone
     for node in &fbx_node.nodes {
-        process_fbx_node(fbx, node, smd, &matrix, Some(&new_bone))?;
+        process_fbx_node(fbx, node, smd, &matrix, Some(&new_bone), flip_fix_list)?;
     }
 
     Ok(())
 }
 
 /// Returns (Translation, Rotation)
-fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3<f32>, Vector3<f32>) {
+fn calculate_animation_transforms_for(
+    fbx: &SimpleFbx, obj: &Object, flip_fix_list: &Vec<String>,
+) -> (Vector3<f32>, Vector3<f32>) {
     let properties = ModelProperties::from_generic(&obj.properties);
 
     // Get the bone's translation
@@ -182,6 +189,10 @@ fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3
     let prop_rot_offset: Vector3<_> = properties.rotation_offset.into();
     let prop_rot_pivot: Vector3<_> = properties.rotation_pivot.into();
     let translation = parent_after_rot_translation + prop_translation + prop_rot_offset + prop_rot_pivot;
+
+    // Check if this bone's in the flip fix list
+    // TODO: Get an actual fix instead of this dirty manual hack
+    let flip = flip_fix_list.iter().any(|n| n == &id_name(&obj.name).unwrap());
 
     // We want the rotation, but we've got multiple rotations, so combine them
     let pre_rotation = Quaternion::from(Euler::new(
@@ -194,7 +205,11 @@ fn calculate_animation_transforms_for(fbx: &SimpleFbx, obj: &Object) -> (Vector3
         Deg(properties.post_rotation[0]), Deg(properties.post_rotation[1]), Deg(properties.post_rotation[2])
     ));
 
-    let total_rotation = Euler::from(post_rotation * rotation * pre_rotation);
+    let total_rotation = if !flip {
+        Euler::from(post_rotation.invert() * rotation * pre_rotation)
+    } else {
+        Euler::from(post_rotation.invert() * rotation.invert() * pre_rotation)
+    };
     let rotation = Vector3::new(
         total_rotation.x.0,
         total_rotation.y.0,
@@ -256,7 +271,7 @@ fn local_matrices(properties: &ModelProperties) -> Matrix4<f32> {
         rotation_pivot_mat *
         pre_rotation *
         rotation *
-        post_rotation *
+        post_rotation.invert().unwrap() *
         rotation_pivot_mat.invert().unwrap() *
 
         // Scale

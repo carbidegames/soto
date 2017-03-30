@@ -26,7 +26,7 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     let toml: SotoFbxTask = soto::read_toml(&params.target_toml)?;
 
     // Generate the reference SDM
-    let reference_smd = smd::create_reference_smd(&toml.model.reference)?;
+    let reference_smd = smd::create_reference_smd(&toml.model.reference, &toml.model.flip_fix_list)?;
 
     // Export the reference SMD
     let mut reference_smd_file = params.working_dir.clone();
@@ -35,12 +35,12 @@ fn task_main(params: TaskParameters) -> Result<(), Error> {
     reference_smd.export(export_file).unwrap();
 
     // Generate the animation SDMs
-    for sequence in &toml.sequences {
+    for sequence in toml.sequences.as_ref().unwrap_or(&::std::collections::HashMap::new()) {
         task_log(format!("Generating animation \"{}\"...", sequence.0));
 
         // Generate the SMD
         let animation_smd = smd::create_animation_smd(
-            &reference_smd, &sequence.1.file
+            &reference_smd, &sequence.1.file, &toml.model.flip_fix_list
         )?;
 
         // Export the SMD

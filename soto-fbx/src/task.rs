@@ -10,6 +10,7 @@ pub struct Prop {
 #[derive(Deserialize)]
 pub struct Model {
     pub reference: PathBuf,
+    pub flip_fix_list: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -22,5 +23,5 @@ pub struct Sequence {
 pub struct SotoFbxTask {
     pub prop: Prop,
     pub model: Model,
-    pub sequences: HashMap<String, Sequence>,
+    pub sequences: Option<HashMap<String, Sequence>>,
 }
